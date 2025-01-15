@@ -59,14 +59,14 @@ rc = racecar_core.create_racecar()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour (Adjust threshold!)
-MIN_CONTOUR_AREA = 30
+MIN_CONTOUR_AREA = 1000
 
 # TODO Part 1: Determine the HSV color threshold pairs for ORANGE, GREEN, RED, YELLOW, and PURPLE
 # Colors, stored as a pair (hsv_min, hsv_max)
-BLUE = ((90, 50, 50), (120, 255, 255))  # The HSV range for the color blue
+BLUE = ((85, 100, 100), (105, 255, 255))  # The HSV range for the color blue - RGB(0, 128, 255)
 GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
 RED = ((0, 50, 50), (10, 255, 255))  # The HSV range for the color red
-ORANGE = ((10, 50, 50), (25, 255, 255))  # The HSV range for the color orange
+ORANGE = ((5, 50, 50), (25, 255, 255))  # The HSV range for the color orange
 ANY = ((0, 0, 0), (179, 255, 255))  # The HSV range for any color
 # The HSV range for the color yellow
 #why yellow?
