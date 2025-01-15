@@ -101,8 +101,9 @@ def update_contour():
    global contour_blue , contour_green , contour_red , contour_orange #, contour_any
    global stoplight_color
 
+   print("Attempting to get camera image...")
    image = rc.camera.get_color_image()
-   print("cont start")
+   print(f"Camera image received: {'None' if image is None else f'shape={image.shape}'}")
    if image is not None:
        print("not none ")
        contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
