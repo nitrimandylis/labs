@@ -110,12 +110,12 @@ def update_contour():
    image = rc.camera.get_color_image()
 #    print(f"Camera image received: {'None' if image is None else f'shape={image.shape}'}")
    if image is not None:
-       print("not none ")
-       contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-       contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
-       contours_red = rc_utils.find_contours(image, RED[0], RED[1])
-       contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
-       print("cont2")
+        print("not none ")
+        contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+        contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
+        contours_red = rc_utils.find_contours(image, RED[0], RED[1])
+        contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
+        print("cont2")
 
         contour_blue = rc_utils.get_largest_contour(contours_blue, MIN_CONTOUR_AREA)
         contour_green = rc_utils.get_largest_contour(contours_green, MIN_CONTOUR_AREA)
@@ -169,15 +169,15 @@ def update_contour():
             contour_center = contour_center_purple
         else:
             stoplight_color = None
-    else:
+   else:
         stoplight_color = None
 
 
-    current_time += rc.get_delta_time()
-    if int(current_time) % 2 == 0:
+   current_time += rc.get_delta_time()
+   if int(current_time) % 2 == 0:
         rc.display.show_color_image(image)
         print("clorImage"+ f"current time: {current_time}")
-    if int(current_time) % 2 == 1:
+   if int(current_time) % 2 == 1:
         rc.display.show_depth_image(depth_image)
         print("depthImage" + f"current time: {current_time}")
 
