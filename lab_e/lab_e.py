@@ -191,6 +191,7 @@ def start():
 # is pressed  
 def update():
    global queue
+   update_contour()
    if stoplight_color == None:
        stopNow()
    elif stoplight_color == "blue":
