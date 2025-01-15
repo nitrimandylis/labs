@@ -95,23 +95,27 @@ contour_center_purple = None
 ########################################################################################
 
 def update_contour():
-    global stoplight_color, contour_center, contour_area
-    global contours_blue, contours_green, contours_red, contours_orange, contours_yellow, contours_purple
-    global contour_blue, contour_green, contour_red, contour_orange, contour_yellow, contour_purple
-    global Distance_Box_Blue, Distance_Box_Green, Distance_Box_Red, Distance_Box_Orange, Distance_Box_Yellow, Distance_Box_Purple
-    global contour_center_blue, contour_center_green, contour_center_red, contour_center_orange, contour_center_yellow, contour_center_purple
-    global current_time
+   global stoplight_color
+   global contour_center
+   global contour_area
+   global contours_blue 
+   global contours_green 
+   global contours_red 
+   global contours_orange 
+   #global contours_any
+   global contour_blue , contour_green , contour_red , contour_orange #, contour_any
+   global stoplight_color
 
-    image = rc.camera.get_color_image()
-    depth_image = rc.camera.get_depth_image()
-
-    if image is not None and depth_image is not None:
-        contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-        contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
-        contours_red = rc_utils.find_contours(image, RED[0], RED[1])
-        contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
-        contours_yellow = rc_utils.find_contours(image, YELLOW[0], YELLOW[1])
-        contours_purple = rc_utils.find_contours(image, PURPLE[0], PURPLE[1])
+#    print("Attempting to get camera image...")
+   image = rc.camera.get_color_image()
+#    print(f"Camera image received: {'None' if image is None else f'shape={image.shape}'}")
+   if image is not None:
+       print("not none ")
+       contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+       contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
+       contours_red = rc_utils.find_contours(image, RED[0], RED[1])
+       contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
+       print("cont2")
 
         contour_blue = rc_utils.get_largest_contour(contours_blue, MIN_CONTOUR_AREA)
         contour_green = rc_utils.get_largest_contour(contours_green, MIN_CONTOUR_AREA)
