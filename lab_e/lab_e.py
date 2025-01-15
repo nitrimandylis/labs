@@ -1,4 +1,4 @@
-""""
+"""
 MIT BWSI Autonomous RACECAR
 MIT License
 racecar-neo-outreach-labs
@@ -36,7 +36,6 @@ By default, the traffic lights should direct you in a counterclockwise circle ar
 For testing purposes, you may change the color of the traffic light by first left-clicking to 
 select and then right clicking on the light to scroll through available colors.
 """
-
 ########################################################################################
 # Imports
 ########################################################################################
@@ -45,8 +44,6 @@ import sys
 import cv2 as cv
 import numpy as np
 
-# If this file is nested inside a folder in the labs folder, the relative path should
-# be [1, ../../library] instead.
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
@@ -57,182 +54,238 @@ import racecar_utils as rc_utils
 
 rc = racecar_core.create_racecar()
 
-# >> Constants
-# The smallest contour we will recognize as a valid contour (Adjust threshold!)
-MIN_CONTOUR_AREA = 1000
+MIN_CONTOUR_AREA = 1700
 
-# TODO Part 1: Determine the HSV color threshold pairs for ORANGE, GREEN, RED, YELLOW, and PURPLE
-# Colors, stored as a pair (hsv_min, hsv_max)
-BLUE = ((85, 100, 100), (105, 255, 255))  # The HSV range for the color blue - RGB(0, 128, 255)
-GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
-RED = ((0, 50, 50), (10, 255, 255))  # The HSV range for the color red
-ORANGE = ((5, 50, 50), (25, 255, 255))  # The HSV range for the color orange
-ANY = ((0, 0, 0), (179, 255, 255))  # The HSV range for any color
-# The HSV range for the color yellow
-#why yellow?
-# The HSV range for the color purple  
-#why purple?
+BLUE = ((85, 100, 100), (105, 255, 255))
+GREEN = ((40, 50, 50), (80, 255, 255))
+RED = ((0, 50, 50), (10, 255, 255))
+ORANGE = ((5, 50, 50), (25, 255, 255))
+YELLOW = ((20, 100, 100), (30, 255, 255))
+PURPLE = ((130, 50, 50), (150, 255, 255))
+ANY = ((0, 0, 0), (179, 255, 255))
 
-# >> Variables
-contour_center = None  # The (pixel row, pixel column) of contour
-contour_area = 0 # The area of contour
+contour_center = None
+contour_area = 0
 speed = 0
 angle = 0
+counter = 0
 
 global stoplight_color
-queue = [] # The queue of instructions
-stoplight_color = "" # The current color of the stoplight
+queue = []
+stoplight_color = ""
+last_seen_color = None
+
+Distance_Box_Blue = 0
+Distance_Box_Green = 0
+Distance_Box_Red = 0
+Distance_Box_Orange = 0
+Distance_Box_Yellow = 0
+Distance_Box_Purple = 0
+current_time = 0
+
+contour_center_blue = None
+contour_center_green = None
+contour_center_red = None
+contour_center_orange = None
+contour_center_yellow = None
+contour_center_purple = None
 
 ########################################################################################
 # Functions
 ########################################################################################
 
-# [FUNCTION] Finds contours in the current color image and uses them to update 
-# contour_center and contour_area
 def update_contour():
-   global stoplight_color
-   global contour_center
-   global contour_area
-   global contours_blue 
-   global contours_green 
-   global contours_red 
-   global contours_orange 
-   #global contours_any
-   global contour_blue , contour_green , contour_red , contour_orange #, contour_any
-   global stoplight_color
+    global stoplight_color, contour_center, contour_area
+    global contours_blue, contours_green, contours_red, contours_orange, contours_yellow, contours_purple
+    global contour_blue, contour_green, contour_red, contour_orange, contour_yellow, contour_purple
+    global Distance_Box_Blue, Distance_Box_Green, Distance_Box_Red, Distance_Box_Orange, Distance_Box_Yellow, Distance_Box_Purple
+    global contour_center_blue, contour_center_green, contour_center_red, contour_center_orange, contour_center_yellow, contour_center_purple
+    global current_time
 
-   print("Attempting to get camera image...")
-   image = rc.camera.get_color_image()
-   print(f"Camera image received: {'None' if image is None else f'shape={image.shape}'}")
-   if image is not None:
-       print("not none ")
-       contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-       contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
-       contours_red = rc_utils.find_contours(image, RED[0], RED[1])
-       contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
-       print("cont2")
+    image = rc.camera.get_color_image()
+    depth_image = rc.camera.get_depth_image()
 
-       contour_blue = rc_utils.get_largest_contour(contours_blue, MIN_CONTOUR_AREA)
-       contour_green = rc_utils.get_largest_contour(contours_green, MIN_CONTOUR_AREA)
-       contour_red = rc_utils.get_largest_contour(contours_red, MIN_CONTOUR_AREA)
-       contour_orange = rc_utils.get_largest_contour(contours_orange, MIN_CONTOUR_AREA) 
-       print("cont3")
+    if image is not None and depth_image is not None:
+        contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+        contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
+        contours_red = rc_utils.find_contours(image, RED[0], RED[1])
+        contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
+        contours_yellow = rc_utils.find_contours(image, YELLOW[0], YELLOW[1])
+        contours_purple = rc_utils.find_contours(image, PURPLE[0], PURPLE[1])
 
-       if contour_blue is not None:
-           contour_center_blue = rc_utils.get_contour_center(contour_blue)
-           rc_utils.draw_circle(image, contour_center_blue)
-           rc_utils.draw_contour(image, contour_blue)
-           stoplight_color = "blue"
-           print("con blu")
-       elif contour_orange is not None:
-           contour_center_orange = rc_utils.get_contour_center(contour_orange)
-           rc_utils.draw_circle(image, contour_center_orange)
-           rc_utils.draw_contour(image, contour_orange)
-           stoplight_color = "orange"
-           print("con ora")
-       elif contour_green is not None:
-           contour_center_green = rc_utils.get_contour_center(contour_green)
-           rc_utils.draw_circle(image, contour_center_green)
-           rc_utils.draw_contour(image, contour_green)
-           stoplight_color = "green"
-           print("con gre")
-       elif contour_red is not None:
-           contour_center_red = rc_utils.get_contour_center(contour_red)
-           rc_utils.draw_circle(image, contour_center_red)
-           rc_utils.draw_contour(image, contour_red)
-           stoplight_color = "red"
-           print("con red")
-   else:
-       contour_center = None
-       contour_area = 0
-       print("cont 1")
+        contour_blue = rc_utils.get_largest_contour(contours_blue, MIN_CONTOUR_AREA)
+        contour_green = rc_utils.get_largest_contour(contours_green, MIN_CONTOUR_AREA)
+        contour_red = rc_utils.get_largest_contour(contours_red, MIN_CONTOUR_AREA)
+        contour_orange = rc_utils.get_largest_contour(contours_orange, MIN_CONTOUR_AREA)
+        contour_yellow = rc_utils.get_largest_contour(contours_yellow, MIN_CONTOUR_AREA)
+        contour_purple = rc_utils.get_largest_contour(contours_purple, MIN_CONTOUR_AREA)
 
-   # Display the image to the screen
-   rc.display.show_color_image(image)
+        if contour_blue is not None:
+            contour_center_blue = rc_utils.get_contour_center(contour_blue)
+            Distance_Box_Blue = depth_image[contour_center_blue[0]][contour_center_blue[1]]
+            print("con blu")
+        if contour_orange is not None:
+            contour_center_orange = rc_utils.get_contour_center(contour_orange)
+            Distance_Box_Orange = depth_image[contour_center_orange[0]][contour_center_orange[1]]
+            print("con ora")
+        if contour_green is not None:
+            contour_center_green = rc_utils.get_contour_center(contour_green)
+            Distance_Box_Green = depth_image[contour_center_green[0]][contour_center_green[1]]
+            print("con gre")
+        if contour_red is not None:
+            contour_center_red = rc_utils.get_contour_center(contour_red)
+            Distance_Box_Red = depth_image[contour_center_red[0]][contour_center_red[1]]
+            print("con red")
+        if contour_yellow is not None:
+            contour_center_yellow = rc_utils.get_contour_center(contour_yellow)
+            Distance_Box_Yellow = depth_image[contour_center_yellow[0]][contour_center_yellow[1]]
+            print("con yel")
+        if contour_purple is not None:
+            contour_center_purple = rc_utils.get_contour_center(contour_purple)
+            Distance_Box_Purple = depth_image[contour_center_purple[0]][contour_center_purple[1]]
+            print("con pur")
 
-# [FUNCTION] The start function is run once every time the start button is pressed
+        if contour_blue is not None:
+            stoplight_color = "blue"
+            contour_center = contour_center_blue
+        elif contour_orange is not None:
+            stoplight_color = "orange"
+            contour_center = contour_center_orange
+        elif contour_green is not None:
+            stoplight_color = "green"
+            contour_center = contour_center_green
+        elif contour_red is not None:
+            stoplight_color = "red"
+            contour_center = contour_center_red
+        elif contour_yellow is not None:
+            stoplight_color = "yellow"
+            contour_center = contour_center_yellow
+        elif contour_purple is not None:
+            stoplight_color = "purple"
+            contour_center = contour_center_purple
+        else:
+            stoplight_color = None
+    else:
+        stoplight_color = None
+
+
+    current_time += rc.get_delta_time()
+    if int(current_time) % 2 == 0:
+        rc.display.show_color_image(image)
+        print("clorImage"+ f"current time: {current_time}")
+    if int(current_time) % 2 == 1:
+        rc.display.show_depth_image(depth_image)
+        print("depthImage" + f"current time: {current_time}")
+
 def start():
+    global counter
+    counter = 0
 
-   # Set initial driving speed and angle
-   rc.drive.set_speed_angle(0,0)
+    rc.drive.set_speed_angle(0,0)
+    rc.set_update_slow_time(0.5)
 
-   # Set update_slow to refresh every half second
-   rc.set_update_slow_time(0.5)
+    print(
+        ">> Lab 3 - Stoplight Challenge\n"
+        "\n"
+        "Controls:\n"
+        "   A button = print current speed and angle\n"
+        "   B button = print contour center and area"
+    )
 
-   # Print start message (You may edit this to be more informative!)
-   print(
-       ">> Lab 3 - Stoplight Challenge\n"
-       "\n"
-       "Controls:\n"
-       "   A button = print current speed and angle\n"
-       "   B button = print contour center and area"
-   )
-   update_contour()
-
-# [FUNCTION] After start() is run, this function is run once every frame (ideally at
-# 60 frames per second or slower depending on processing speed) until the back button
-# is pressed  
 def update():
-   global queue
-   update_contour()
-   if stoplight_color == None:
-       stopNow()
-   elif stoplight_color == "blue":
-       turnRight()
-   elif stoplight_color == "orange":
-       turnLeft()
-   elif stoplight_color == "green":
-       goStraight()
-   elif stoplight_color == "red":
-       stopNow()
+    global queue, counter, last_seen_color
+    update_contour()
+    print(f"stoplight color: {stoplight_color}")
 
-   # TODO Part 2: Complete the conditional tree with the given constraints.
+    if stoplight_color in ["blue", "orange", "green", "red", "yellow", "purple"]:
+        last_seen_color = stoplight_color
+        action = {"blue": turnRight, "orange": turnLeft, "green": goStraight, "red": stopNow, "yellow": stopNow, "purple": stopNow}[stoplight_color]
+        action()
+        print(f"{action.__name__}")
+    elif stoplight_color is None:
+        if last_seen_color in ["blue", "orange", "green", "red", "yellow", "purple"]:
+            action = {"blue": turnRight, "orange": turnLeft, "green": goStraight, "red": stopNow, "yellow": stopNow, "purple": stopNow}[last_seen_color]
+            action()
+            print(f"{action.__name__} ls")
+        else:
+            rc.drive.set_speed_angle(1.0, 0)
 
-   # TODO Part 3: Implement a way to execute instructions from the queue once they have been placed
-   # by the traffic light detector logic (Hint: Lab 2)
+    counter += rc.get_delta_time()
+    print(f"last seen color: {last_seen_color}")
 
-   # Send speed and angle commands to the RACECAR
-   rc.drive.set_speed_angle(speed, angle)
-
-   # Print the current speed and angle when the A button is held down
-   if rc.controller.is_down(rc.controller.Button.A):
-       print("Speed:", speed, "Angle:", angle)
-
-   # Print the center and area of the largest contour when B is held down
-   if rc.controller.is_down(rc.controller.Button.B):
-       if contour_center is None:
-           print("No contour found")
-       else:
-           print("Center:", contour_center, "Area:", contour_area)
-
-# [FUNCTION] Appends the correct instructions to make a 90 degree right turn to the queue
+    print(f"Distance Box Blue: {Distance_Box_Blue}")
+    print(f"Distance Box Green: {Distance_Box_Green}")
+    print(f"Distance Box Red: {Distance_Box_Red}")
+    print(f"Distance Box Orange: {Distance_Box_Orange}")
+    print(f"Distance Box Yellow: {Distance_Box_Yellow}")
+    print(f"Distance Box Purple: {Distance_Box_Purple}")
 def turnRight():
    global queue
-   queue.append("Turn right")
-   
+   global counter
+   if Distance_Box_Blue > 70:
+    Angle_error = (contour_center_blue[1] - 320) / 320
+    angle = 0.5 * Angle_error
+    rc.drive.set_speed_angle(1,angle)
+   if Distance_Box_Blue < 70 or Distance_Box_Blue == 0:
+    counter += rc.get_delta_time()
+    
+    if 0 < counter < 1.5:
+        rc.drive.set_speed_angle(1,1)
+    elif 1.5 < counter < 2.3:
+        rc.drive.set_speed_angle(1,1)
+    elif 2.3 < counter < 3:
+        rc.drive.set_speed_angle(1,0)
+    elif counter > 3:
+        rc.drive.set_speed_angle(1,0)
+        counter = 0
+        print("counter reset right")
 
    # TODO Part 4: Complete the rest of this function with the instructions to make a right turn
+
 
 # [FUNCTION] Appends the correct instructions to make a 90 degree left turn to the queue
 def turnLeft():
    global queue
-   queue.append("Turn left")
-
-   # TODO Part 5: Complete the rest of this function with the instructions to make a left turn
+   global counter
+   if Distance_Box_Orange > 70:
+    Angle_error = (contour_center_orange[1] - 320) / 320
+    angle = 0.5 * Angle_error
+    rc.drive.set_speed_angle(1,angle)
+   if Distance_Box_Orange < 70 or Distance_Box_Orange == 0:
+    counter += rc.get_delta_time() 
+     # Increment the counter
+    if 0 <= counter < 1.5:
+        rc.drive.set_speed_angle(1, -1)  # Turn left
+    elif 1.5 <= counter < 2.3:
+        rc.drive.set_speed_angle(1, -1)  # Turn left
+    elif 2.3 <= counter < 3:
+        rc.drive.set_speed_angle(1, 0)  # Move forward
+    elif counter >= 3:
+       rc.drive.set_speed_angle(1, 0)
+       counter = 0 
+       print("counter reset left") # Stop the car
+   # Append the instruction to the queue
 
 # [FUNCTION] Appends the correct instructions to go straight through the intersectionto the queue
 def goStraight():
-   
    global queue
-   queue.append("Go straight")
+   Angle_error = (contour_center_green[1] - 320) / 320
+   angle = 0.5 * Angle_error
+   rc.drive.set_speed_angle(1,angle)
+ 
+
+def stopNow():
+   global queue
+   Angle_error = (contour_center_red[1] - 320) / 320
+   angle = 0.5 * Angle_error
+   rc.drive.set_speed_angle(0,angle)
+
 
    # TODO Part 6: Complete the rest of this function with the instructions to make a left turn
 def update_slow():    
    global queue
 # [FUNCTION] Clears the queue to stop all actions
-def stopNow():
-   global queue
-   queue.clear()
+
 
 ########################################################################################
 # DO NOT MODIFY: Register start and update and begin execution
