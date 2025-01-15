@@ -64,10 +64,10 @@ MIN_CONTOUR_AREA = 30
 # TODO Part 1: Determine the HSV color threshold pairs for ORANGE, GREEN, RED, YELLOW, and PURPLE
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((90, 50, 50), (120, 255, 255))  # The HSV range for the color blue
-GREEN = ((107, 81, 80), (85, 255, 255)) # The HSV range for the color green
-RED = ((0, 80, 80),     (10, 255, 255))  # The HSV range for the color red
-ORANGE = ((10, 100, 100), (20, 255, 255)) # The HSV range for the color orange
-ANY = ((0, 1, 1), (179, 255, 255)) # The HSV range for any color
+GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
+RED = ((0, 50, 50), (10, 255, 255))  # The HSV range for the color red
+ORANGE = ((10, 50, 50), (25, 255, 255))  # The HSV range for the color orange
+ANY = ((0, 0, 0), (179, 255, 255))  # The HSV range for any color
 # The HSV range for the color yellow
 #why yellow?
 # The HSV range for the color purple  
@@ -104,67 +104,49 @@ def update_contour():
    image = rc.camera.get_color_image()
    print("cont start")
    if image is not None:
-       if image is not None:
-           print("not none ")
-           contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-           contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
-           contours_red = rc_utils.find_contours(image, RED[0], RED[1])
-           contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
-           print("cont2")
-           #contours_any = rc_utils.find_contours(image, ANY[0], ANY[1])
+       print("not none ")
+       contours_blue = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+       contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
+       contours_red = rc_utils.find_contours(image, RED[0], RED[1])
+       contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
+       print("cont2")
 
-           contour_blue = rc_utils.get_largest_contour(contours_blue, MIN_CONTOUR_AREA)
-           contour_green = rc_utils.get_largest_contour(contours_green, MIN_CONTOUR_AREA)
-           contour_red = rc_utils.get_largest_contour(contours_red, MIN_CONTOUR_AREA)
-           contour_orange = rc_utils.get_largest_contour(contours_orange, MIN_CONTOUR_AREA) 
-           print("cont3")
-           #contour_any = rc_utils.get_largest_contour(contours_any, MIN_CONTOUR_AREA) 
+       contour_blue = rc_utils.get_largest_contour(contours_blue, MIN_CONTOUR_AREA)
+       contour_green = rc_utils.get_largest_contour(contours_green, MIN_CONTOUR_AREA)
+       contour_red = rc_utils.get_largest_contour(contours_red, MIN_CONTOUR_AREA)
+       contour_orange = rc_utils.get_largest_contour(contours_orange, MIN_CONTOUR_AREA) 
+       print("cont3")
 
+       if contour_blue is not None:
            contour_center_blue = rc_utils.get_contour_center(contour_blue)
+           rc_utils.draw_circle(image, contour_center_blue)
+           rc_utils.draw_contour(image, contour_blue)
+           stoplight_color = "blue"
+           print("con blu")
+       elif contour_orange is not None:
+           contour_center_orange = rc_utils.get_contour_center(contour_orange)
+           rc_utils.draw_circle(image, contour_center_orange)
+           rc_utils.draw_contour(image, contour_orange)
+           stoplight_color = "orange"
+           print("con ora")
+       elif contour_green is not None:
            contour_center_green = rc_utils.get_contour_center(contour_green)
+           rc_utils.draw_circle(image, contour_center_green)
+           rc_utils.draw_contour(image, contour_green)
+           stoplight_color = "green"
+           print("con gre")
+       elif contour_red is not None:
            contour_center_red = rc_utils.get_contour_center(contour_red)
-           contour_center_orange = rc_utils.get_contour_center(contour_orange) 
-
-           if contour_center_blue is not None and contour_center_green is not None and contour_center_red is not None and contour_center_orange is not None:
-               rc_utils.draw_circle(image, contour_center_blue)
-               rc_utils.draw_circle(image, contour_center_green)
-               rc_utils.draw_circle(image, contour_center_red)
-               rc_utils.draw_circle(image, contour_center_orange)
-
-               rc_utils.draw_contour(image, contour_blue)
-               rc_utils.draw_contour(image, contour_green)
-               rc_utils.draw_contour(image, contour_red)
-               rc_utils.draw_contour(image, contour_orange)
-
-           if  contour_blue is not None and len(contours_blue) > 0:
-               print("con blu")
-               stoplight_color = "blue"
-           elif contour_orange is not None and len(contours_orange) > 0: 
-               print("con ora")
-               stoplight_color = "orange"
-           elif contour_green is not None and len(contours_green) > 0:
-               print("con gre")
-               stoplight_color = "green"
-           elif contour_red is not None and len(contours_red) > 0:
-               print("con red")
-               stoplight_color = "red"
+           rc_utils.draw_circle(image, contour_center_red)
+           rc_utils.draw_contour(image, contour_red)
+           stoplight_color = "red"
+           print("con red")
    else:
-         if image is None:
-           contour_center = None
-           contour_area = 0
-           print("cont 1")
+       contour_center = None
+       contour_area = 0
+       print("cont 1")
 
-
-
-
-
-           # TODO Part 2: Search for line colors, and update the global variables
-           # contour_center and contour_area with the largest contour found
-
-           # TODO Part 3: Repeat the search for all potential traffic light colors,
-           # then select the correct color of traffic light detected.
-
-           # Display the image to the screen
+   # Display the image to the screen
    rc.display.show_color_image(image)
 
 # [FUNCTION] The start function is run once every time the start button is pressed
@@ -203,11 +185,7 @@ def update():
    elif stoplight_color == "red":
        stopNow()
 
-
-
-       
    # TODO Part 2: Complete the conditional tree with the given constraints.
-
 
    # TODO Part 3: Implement a way to execute instructions from the queue once they have been placed
    # by the traffic light detector logic (Hint: Lab 2)
