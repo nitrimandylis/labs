@@ -44,7 +44,7 @@ import sys
 import cv2 as cv
 import numpy as np
 
-sys.path.insert(1, "../../library")
+sys.path.insert(1, "/Users/nick/Developer/racecar-neo-installer/racecar-student/library")
 import racecar_core
 import racecar_utils as rc_utils
 
@@ -55,6 +55,8 @@ import racecar_utils as rc_utils
 rc = racecar_core.create_racecar()
 
 MIN_CONTOUR_AREA = 1700
+
+current_time = 0.0
 
 BLUE = ((85, 100, 100), (105, 255, 255))
 GREEN = ((40, 50, 50), (80, 255, 255))
@@ -81,7 +83,6 @@ Distance_Box_Red = 0
 Distance_Box_Orange = 0
 Distance_Box_Yellow = 0
 Distance_Box_Purple = 0
-current_time = 0
 
 contour_center_blue = None
 contour_center_green = None
@@ -102,12 +103,17 @@ def update_contour():
    global contours_green 
    global contours_red 
    global contours_orange 
+   global contours_yellow
+   global contours_purple
+   global depth_image
+   global current_time
    #global contours_any
-   global contour_blue , contour_green , contour_red , contour_orange #, contour_any
+   global contour_blue , contour_green , contour_red , contour_orange, contour_yellow, contour_purple #, contour_any
    global stoplight_color
 
 #    print("Attempting to get camera image...")
    image = rc.camera.get_color_image()
+   depth_image = rc.camera.get_depth_image()
 #    print(f"Camera image received: {'None' if image is None else f'shape={image.shape}'}")
    if image is not None:
         print("not none ")
@@ -115,6 +121,8 @@ def update_contour():
         contours_green = rc_utils.find_contours(image, GREEN[0], GREEN[1])
         contours_red = rc_utils.find_contours(image, RED[0], RED[1])
         contours_orange = rc_utils.find_contours(image, ORANGE[0], ORANGE[1])
+        contours_yellow = rc_utils.find_contours(image, YELLOW[0], YELLOW[1])
+        contours_purple = rc_utils.find_contours(image, PURPLE[0], PURPLE[1])
         print("cont2")
 
         contour_blue = rc_utils.get_largest_contour(contours_blue, MIN_CONTOUR_AREA)
