@@ -141,7 +141,7 @@ def start():
 
 def update():
     
-    global cur_state
+    
     global Next_Cone
     global current_Cone
     global CloseDistance
@@ -156,11 +156,19 @@ def update():
         rc.drive.set_speed_angle(1, Random_angle)
 
     if cur_state == State.red:
-        Angle_error_blue = (contour_center_red[1] - 320) / 320
-        angle = 0.5 * Angle_error_blue
+        print("cur_state = State.red If statemebajbk")
+        if contour_center_red is not None:
+            Angle_error_red = (contour_center_red[1] - 320) / 320
+        else:
+            cur_state = State.blue
+            Angle_error_red = 1
+        angle = 0.5 * Angle_error_red
         rc.drive.set_speed_angle(1,angle)
         if Distance_Cone_Red < CloseDistance:
             rc.drive.set_speed_angle(1,1)
+    
+    if cur_state == State.blue:
+        print("cur_state = State.blue If statemebajbk")
 
         
 
