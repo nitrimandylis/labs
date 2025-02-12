@@ -47,7 +47,7 @@ last_distance = 0
 counter = 0
 
 
-def update_contours(image,imag_depth):
+def update_contours(image,image_depth):
     global Next_Cone
     global current_Cone
     global Distance_Cone_Red
