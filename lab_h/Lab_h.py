@@ -2,6 +2,7 @@ import sys
 import cv2 as cv
 import numpy as np
 from enum import Enum
+import random 
 
 sys.path.insert(1, "../../library")
 import racecar_core
@@ -107,27 +108,43 @@ def update_contours(image,imag_depth):
                 cone_Selected = Current_Cone.BLUE
                 cur_state = State.blue
                 return (cone_Selected, contour_center, contour_area, Next_Cone, contour_blue)
-
-
+    
+    current_time += rc.get_delta_time()
+    if int(current_time) % 2 == 0:
+        rc.display.show_color_image(image)
+        print("clorImage"+ f"current time: {current_time}")
+    if int(current_time) % 2 == 1:
+        rc.display.show_depth_image(depth_image)
+        print("depthImage" + f"current time: {current_time}")
 
 def start():
-
-    cur_state = State.search
-    Next_Cone = Next_Cone.NOTHING
-    current_Cone = Current_Cone.NOTHING
-
-    speed = 0.0
-    angle = 0.0
-    last_distance = 0
-    counter = 0
+    pass
 
 def update():
     
     global cur_state
     global Next_Cone
     global current_Cone
+    global CloseDistance
+
+    CloseDistance = 50
+
+    update_contours(rc.camera.get_color_image(), rc.camera.get_depth_image())
 
     if cur_state == State.search:
+        Random_angle = random.uniform(-1,1)
+   #     Random_speed = random.uniform(-1,1)
+        rc.drive.set_speed_angle(1, Random_angle)
+
+    if cur_state == State.red:
+        Angle_error_blue = (contour_center_blue[1] - 320) / 320
+        angle = 0.5 * Angle_error_blue
+        rc.drive.set_speed_angle(1,angle)
+        if Distance_Cone_Red < CloseDistance:
+            rc.drive.set_speed_angle(1,1)
+
+        
+
         
 
 
