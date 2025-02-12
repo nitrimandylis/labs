@@ -141,12 +141,15 @@ def start():
 
 def update():
     
-    
+    global cur_state
     global Next_Cone
     global current_Cone
     global CloseDistance
+    global TrunLeftValue, TurnRightValue
 
-    CloseDistance = 50
+    TurnRightValue = 0.5
+    CloseDistance = 70
+    TrunLeftValue = -TurnRightValue
 
     update_contours(rc.camera.get_color_image(), rc.camera.get_depth_image())
 
@@ -160,19 +163,34 @@ def update():
         if contour_center_red is not None:
             Angle_error_red = (contour_center_red[1] - 320) / 320
         else:
-            cur_state = State.blue
+            if contour_center_blue is not None:
+                cur_state = State.blue
+            else:
+                cur_state = State.search
             Angle_error_red = 1
+
         angle = 0.5 * Angle_error_red
         rc.drive.set_speed_angle(1,angle)
         if Distance_Cone_Red < CloseDistance:
-            rc.drive.set_speed_angle(1,1)
+            angle = TurnRightValue
+            rc.drive.set_speed_angle(1,angle)
     
     if cur_state == State.blue:
         print("cur_state = State.blue If statemebajbk")
-
-        
-
-        
+        if contour_center_blue is not None:
+            Angle_error_blue = (contour_center_blue[1] - 320) / 320
+        else:
+            if contour_center_red is not None:
+                cur_state = State.red
+            else:
+                cur_state = State.search
+            Angle_error_blue = 1
+        angle = 0.5 * Angle_error_blue
+        rc.drive.set_speed_angle(1,angle)
+        if Distance_Cone_Blue < CloseDistance:
+            angle = TrunLeftValue
+            rc.drive.set_speed_angle(1,angle)
+    
     print(f"cur_state: {cur_state}")
 
 def update_slow():
