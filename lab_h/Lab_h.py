@@ -48,6 +48,10 @@ counter = 0
 
 
 def update_contours(image,imag_depth):
+    global Next_Cone
+    global current_Cone
+    global Distance_Cone_Red
+    global Distance_Cone_Blue
 
     MIN_CONTOUR_AREA = 800
 
