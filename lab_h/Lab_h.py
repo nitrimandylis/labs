@@ -1,6 +1,7 @@
 import sys
 import cv2 as cv
 import numpy as np
+from enum import Enum
 
 sys.path.insert(1, "../../library")
 import racecar_core
@@ -106,3 +107,16 @@ def update_contours(image,imag_depth):
                 cone_Selected = Current_Cone.BLUE
                 cur_state = State.blue
                 return (cone_Selected, contour_center, contour_area, Next_Cone, contour_blue)
+
+
+
+def start():
+
+def update():
+
+def update_slow():
+
+
+if __name__ == "__main__":
+    rc.set_start_update(start, update, update_slow)
+    rc.go()
