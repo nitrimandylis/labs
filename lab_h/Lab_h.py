@@ -112,9 +112,27 @@ def update_contours(image,imag_depth):
 
 def start():
 
+    cur_state = State.search
+    Next_Cone = Next_Cone.NOTHING
+    current_Cone = Current_Cone.NOTHING
+
+    speed = 0.0
+    angle = 0.0
+    last_distance = 0
+    counter = 0
+
 def update():
+    
+    global cur_state
+    global Next_Cone
+    global current_Cone
+
+    if cur_state == State.search:
+        
+
 
 def update_slow():
+    pass
 
 
 if __name__ == "__main__":

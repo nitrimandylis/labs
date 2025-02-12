@@ -112,7 +112,7 @@ def start():
     rc.set_update_slow_time(0.5)
 
     # Print start message
-    print(">> Lab 2b - Definitely not a lie")
+    print("100% lab_g.py")
 
 
 
