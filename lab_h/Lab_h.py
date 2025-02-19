@@ -168,7 +168,9 @@ def update():
     
     # Red cone handling
     if cur_state == State.red:
+        print("this worijfjk")
         if contour_center_red is not None:
+            
             # Calculate steering angle based on cone position
             angle_error = (contour_center_red[1] - 320) / 320
             print("Distance_Red:" + str(Distance_Cone_Red))
