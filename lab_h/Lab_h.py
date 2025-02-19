@@ -6,7 +6,7 @@ from enum import Enum
 import random 
 
 # Add library path and import racecar modules
-sys.path.insert(1, "../../library")
+sys.path.insert(1, "/Users/nick/Developer/racecar-neo-installer/racecar-student/library")
 import racecar_core
 import racecar_utils as rc_utils
 
@@ -88,9 +88,11 @@ def update_contours(image,image_depth):
         contour_center_red = rc_utils.get_contour_center(contour_red)
         contour_center_blue = rc_utils.get_contour_center(contour_blue)
 
-        # Visualize contours
-        rc_utils.draw_contour(image, contour_red)
-        rc_utils.draw_contour(image, contour_blue)
+        # Visualize contours with null checks
+        if contour_red is not None:
+            rc_utils.draw_contour(image, contour_red)
+        if contour_blue is not None:
+            rc_utils.draw_contour(image, contour_blue)
         rc.display.show_color_image(image)
 
         # Process depth information if available
