@@ -137,71 +137,73 @@ def update_contours(image,image_depth):
             print("cur_state = State.blue")
             return (cone_Selected, contour_center, contour_area, Next_Cone, contour_blue)
 
-    def start():
-        """Initialize the robot"""
-        pass
+def start():
+    """Initialize the robot"""
+    pass
 
-    def update():
-        """Main update loop for robot control"""
-        global cur_state
-        global Next_Cone
-        global current_Cone
-        global CloseDistance
-        global TrunLeftValue, TurnRightValue
+def update():
+    """Main update loop for robot control"""
+    global cur_state
+    global Next_Cone
+    global current_Cone
+    global CloseDistance
+    global TrunLeftValue, TurnRightValue
     
-        # Constants for turning and distance
-        TurnRightValue = 0.7  # Increased turning angle for sharper turns
-        CloseDistance = 100   # Increased detection distance for earlier turning
-        TrunLeftValue = -TurnRightValue
+    # Constants for turning and distance
+    TurnRightValue = 0.7  # Increased turning angle for sharper turns
+    CloseDistance = 100   # Increased detection distance for earlier turning
+    TrunLeftValue = -TurnRightValue
     
-        # Get current camera images
-        color_image = rc.camera.get_color_image()
-        depth_image = rc.camera.get_depth_image()
-        
-        # Update contour detection
-        update_contours(color_image, depth_image)
+    # Get current camera images
+    color_image = rc.camera.get_color_image()
+    depth_image = rc.camera.get_depth_image()
     
-        # Search state - random exploration
-        if cur_state == State.search:
-            rc.drive.set_speed_angle(0.5, random.uniform(-1, 1))
-            return
+    # Update contour detection
+    update_contours(color_image, depth_image)
     
-        # Red cone handling
-        if cur_state == State.red:
-            if contour_center_red is not None:
-                # Calculate steering angle based on cone position
-                angle_error = (contour_center_red[1] - 320) / 320
-                
-                # If close to cone, turn right sharply
-                if Distance_Cone_Red < CloseDistance:
-                    rc.drive.set_speed_angle(0.5, TurnRightValue)
-                else:
-                    # Otherwise, adjust to align with cone
-                    rc.drive.set_speed_angle(1, 0.5 * angle_error)
+    # Search state - random exploration
+    if cur_state == State.search:
+        rc.drive.set_speed_angle(0.5, random.uniform(-1, 1))
+        return
+    
+    # Red cone handling
+    if cur_state == State.red:
+        if contour_center_red is not None:
+            # Calculate steering angle based on cone position
+            angle_error = (contour_center_red[1] - 320) / 320
+            print("Distance_Red:" + str(Distance_Cone_Red))
+            # If close to cone, turn right sharply
+            if Distance_Cone_Red < CloseDistance:
+                rc.drive.set_speed_angle(0.5, TurnRightValue)
             else:
-                # If red cone lost, check for blue cone or go to search
-                cur_state = State.blue if contour_center_blue is not None else State.search
+                # Otherwise, adjust to align with cone
+                rc.drive.set_speed_angle(1, 0.5 * angle_error)
+        else:
+            # If red cone lost, check for blue cone or go to search
+            cur_state = State.blue if contour_center_blue is not None else State.search
     
-        # Blue cone handling
-        if cur_state == State.blue:
-            if contour_center_blue is not None:
-                # Calculate steering angle based on cone position
-                angle_error = (contour_center_blue[1] - 320) / 320
-                
-                # If close to cone, turn left sharply
-                if Distance_Cone_Blue < CloseDistance:
-                    rc.drive.set_speed_angle(0.5, TrunLeftValue)
-                else:
-                    # Otherwise, adjust to align with cone
-                    rc.drive.set_speed_angle(1, 0.5 * angle_error)
+    # Blue cone handling
+    if cur_state == State.blue:
+        if contour_center_blue is not None:
+            # Calculate steering angle based on cone position
+            angle_error = (contour_center_blue[1] - 320) / 320
+            print("Distance_Blue:" + str(Distance_Cone_Blue))
+            # If close to cone, turn left sharply
+            if Distance_Cone_Blue < CloseDistance:
+                rc.drive.set_speed_angle(0.5, TrunLeftValue)
             else:
-                # If blue cone lost, check for red cone or go to search
-                cur_state = State.red if contour_center_red is not None else State.search
+                # Otherwise, adjust to align with cone
+                rc.drive.set_speed_angle(1, 0.5 * angle_error)
+        else:
+            # If blue cone lost, check for red cone or go to search
+            cur_state = State.red if contour_center_red is not None else State.search
+    
+    
 
-    def update_slow():
-        """Slow update loop for non-critical operations"""
-        pass
+def update_slow():
+    """Slow update loop for non-critical operations"""
+    pass
     
-    if __name__ == "__main__":
-        rc.set_start_update(start, update, update_slow)
-        rc.go()
+if __name__ == "__main__":
+    rc.set_start_update(start, update, update_slow)
+    rc.go()
