@@ -141,6 +141,8 @@ def update_contours(image,image_depth):
 
 def start():
     global current_time
+    global Last_Turn
+    Last_Turn = None
     current_time = 0
     """Initialize the robot"""
     pass
@@ -195,7 +197,7 @@ def update():
                 Last_Turn = TurnRightValue
             else:
                 # Otherwise, adjust to align with cone
-                rc.drive.set_speed_angle(1, 0.5 * angle_error)
+                rc.drive.set_speed_angle(1, np.all(angle_error))
         else:
             # If red cone lost, check for blue cone or go to search
             cur_state = State.blue if contour_center_blue is not None else State.search
@@ -213,7 +215,7 @@ def update():
                 Last_Turn = TrunLeftValue
             else:
                 # Otherwise, adjust to align with cone
-                rc.drive.set_speed_angle(1, 0.5 * angle_error)
+                rc.drive.set_speed_angle(1, np.all(angle_error))
         else:
             # If blue cone lost, check for red cone or go to search
             cur_state = State.red if contour_red is not None else State.search
