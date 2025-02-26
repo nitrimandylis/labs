@@ -58,6 +58,7 @@ def update_contours(image,image_depth):
         Tuple containing cone information (selected cone, center, area, next cone, contour)
     """
     global Next_Cone
+    global cur_state
     global current_Cone
     global Distance_Cone_Red
     global Distance_Cone_Blue
@@ -170,7 +171,7 @@ def update():
 
     TurnRightValue = 0.7  
     CloseDistance = 100  
-    Distance_To_Start_Alinement = 60
+    Distance_To_Start_Alinement = 160
     TrunLeftValue = -TurnRightValue
     
     
@@ -210,7 +211,7 @@ def update():
                 else:
                     if Distance_Cone_Red is not None:
                     # Otherwise, adjust to align with cone
-                        if Distance_Cone_Red < Distance_To_Start_Alinement:
+                        if Distance_Cone_Red < Distance_To_Start_Alinement and Distance_Cone_Red > CloseDistance:
                             rc.drive.set_speed_angle(1, angle_error)
             else:
                 # If red cone lost, check for blue cone or go to search
@@ -232,7 +233,7 @@ def update():
                     Last_Turn = TrunLeftValue
             else:
                 if Distance_Cone_Blue is not None:
-                    if Distance_Cone_Blue < Distance_To_Start_Alinement:
+                    if Distance_Cone_Blue < Distance_To_Start_Alinement and Distance_Cone_Blue > CloseDistance:
                         # Otherwise, adjust to align with cone
                         rc.drive.set_speed_angle(1, angle_error) 
         else:
@@ -241,7 +242,7 @@ def update():
 
 
     if Last_Turn == TurnRightValue:
-        if current_time >= 1.5:
+        if current_time >= 1.8:
             rc.drive.set_speed_angle(1,TrunLeftValue)
             print("Counter turn left")
             if current_time >= 2.6:
