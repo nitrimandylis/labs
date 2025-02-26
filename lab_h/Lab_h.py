@@ -6,7 +6,7 @@ from enum import Enum
 import random 
 
 # Add library path and import racecar modules
-sys.path.insert(1, "/Users/nick/Developer/racecar-neo-installer/racecar-student/library")
+sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
 
@@ -140,6 +140,8 @@ def update_contours(image,image_depth):
             return (cone_Selected, contour_center, contour_area, Next_Cone, contour_blue)
 
 def start():
+    global current_time
+    current_time = 0
     """Initialize the robot"""
     pass
 
@@ -150,8 +152,13 @@ def update():
     global current_Cone
     global CloseDistance
     global TrunLeftValue, TurnRightValue
+    global Last_Turn
+    global current_time
+
     
     # Constants for turning and distance
+    
+    current_time += rc.get_delta_time()
     TurnRightValue = 0.7  # Increased turning angle for sharper turns
     CloseDistance = 100   # Increased detection distance for earlier turning
     TrunLeftValue = -TurnRightValue
@@ -165,20 +172,27 @@ def update():
     
     # Search state - random exploration
     if cur_state == State.search:
-        rc.drive.set_speed_angle(0.5, random.uniform(-1, 1))
+        if contour_red is None and contour_blue is None:
+            rc.drive.set_speed_angle(0.5, random.uniform(-1, 1))
+        elif contour_blue is None and contour_red is not None:
+            cur_state = State.red
+        elif contour_red is None and contour_blue is not None:
+            cur_state = State.blue
         return
     
     # Red cone handling
     if cur_state == State.red:
         print("this worijfjk")
-        if contour_center_red is not None:
+        if contour_red is not None:
             
             # Calculate steering angle based on cone position
-            angle_error = (contour_center_red[1] - 320) / 320
+            angle_error = (contour_red[1] - 320) / 320
             print("Distance_Red:" + str(Distance_Cone_Red))
             # If close to cone, turn right sharply
             if Distance_Cone_Red < CloseDistance:
+                current_time = 0
                 rc.drive.set_speed_angle(0.5, TurnRightValue)
+                Last_Turn = TurnRightValue
             else:
                 # Otherwise, adjust to align with cone
                 rc.drive.set_speed_angle(1, 0.5 * angle_error)
@@ -194,16 +208,24 @@ def update():
             print("Distance_Blue:" + str(Distance_Cone_Blue))
             # If close to cone, turn left sharply
             if Distance_Cone_Blue < CloseDistance:
+                current_time = 0
                 rc.drive.set_speed_angle(0.5, TrunLeftValue)
+                Last_Turn = TrunLeftValue
             else:
                 # Otherwise, adjust to align with cone
                 rc.drive.set_speed_angle(1, 0.5 * angle_error)
         else:
             # If blue cone lost, check for red cone or go to search
-            cur_state = State.red if contour_center_red is not None else State.search
+            cur_state = State.red if contour_red is not None else State.search
+    if Last_Turn == TurnRightValue and cur_state == State.search:
+        if current_time >= 1.5:
+            rc.drive.set_speed_angle(1,TrunLeftValue)
+    elif Last_Turn == TrunLeftValue and cur_state == State.search:
+        if current_time >= 1.5:
+            rc.drive.set_speed_angle(1,TurnRightValue)
     
     
-
+    print(f"Current Time is :{current_time}")
 def update_slow():
     """Slow update loop for non-critical operations"""
     pass
