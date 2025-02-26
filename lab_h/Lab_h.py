@@ -163,6 +163,7 @@ def update():
     current_time += rc.get_delta_time()
     TurnRightValue = 0.7  
     CloseDistance = 100  
+    Distance_To_Start_Alinement = 200
     TrunLeftValue = -TurnRightValue
     
     # Get current camera images
