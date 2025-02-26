@@ -159,11 +159,10 @@ def update():
 
     
     # Constants for turning and distance
-    
-    current_time += rc.get_delta_time()
+
     TurnRightValue = 0.7  
-    CloseDistance = 100  
-    Distance_To_Start_Alinement = 200
+    CloseDistance = 40  
+    Distance_To_Start_Alinement = 60
     TrunLeftValue = -TurnRightValue
     
     # Get current camera images
@@ -193,12 +192,13 @@ def update():
             # If close to cone, turn right sharply
             if Distance_Cone_Red < CloseDistance:
                 print("Good tone, good tone, Fox 10.")
-                current_time = 0
+                current_time = rc.get_delta_time()
                 rc.drive.set_speed_angle(0.5, TurnRightValue)
                 Last_Turn = TurnRightValue
             else:
                 # Otherwise, adjust to align with cone
-                rc.drive.set_speed_angle(1, angle_error)
+                if Distance_Cone_Red < Distance_To_Start_Alinement:
+                    rc.drive.set_speed_angle(1, angle_error)
         else:
             # If red cone lost, check for blue cone or go to search
             cur_state = State.blue if contour_center_blue is not None else State.search
@@ -212,12 +212,13 @@ def update():
             # If close to cone, turn left sharply
             if Distance_Cone_Blue < CloseDistance:
                 print("Fox 10 Blue")
-                current_time = 0
+                current_time += rc.get_delta_time()
                 rc.drive.set_speed_angle(0.5, TrunLeftValue)
                 Last_Turn = TrunLeftValue
             else:
-                # Otherwise, adjust to align with cone
-                rc.drive.set_speed_angle(1, angle_error) 
+                if Distance_Cone_Red < Distance_To_Start_Alinement:
+                    # Otherwise, adjust to align with cone
+                    rc.drive.set_speed_angle(1, angle_error) 
         else:
             # If blue cone lost, check for red cone or go to search
             cur_state = State.red if contour_red is not None else State.search
@@ -227,11 +228,13 @@ def update():
         if current_time >= 1.5:
             rc.drive.set_speed_angle(1,TrunLeftValue)
             print("Counter turn left")
+            current_time = 0
     elif Last_Turn == TrunLeftValue and cur_state == State.search:
         if current_time >= 1.5:
             rc.drive.set_speed_angle(1,TurnRightValue)
             print("Counter turn right")
-    
+            current_time = 0.0
+        
     
     print(f"Current Time is :{current_time}")
 def update_slow():
