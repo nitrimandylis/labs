@@ -108,7 +108,8 @@ def update_contours(image,image_depth):
             Next_Cone = Next_Cone.BLUE
             contour_center = rc_utils.get_contour_center(contour_red)
             cone_Selected = Current_Cone.RED
-            print("cur_state = State.red")
+            print("Pre check")
+            print(f"Current State is : {cur_state}")
             contour_area = rc_utils.get_contour_area(contour_red)
             return (cone_Selected, contour_center, contour_area, Next_Cone, contour_red)
 
@@ -129,7 +130,8 @@ def update_contours(image,image_depth):
                 contour_area = rc_utils.get_contour_area(contour_red)
                 cone_Selected = Current_Cone.RED
                 cur_state = State.red  
-                print("cur_state = State.red")
+                print("Pre Check")
+                print(f"Curent State : {cur_state}")
                 return (cone_Selected, contour_center, contour_area, Next_Cone, contour_red)
             else:
                 contour_center = rc_utils.get_contour_center(contour_blue)
@@ -142,8 +144,14 @@ def update_contours(image,image_depth):
 def start():
     global current_time
     global Last_Turn
+    global Distance_Cone_Red, Distance_Cone_Blue
+    global angle_error
+    angle_error = 0
     Last_Turn = None
     current_time = 0
+    Distance_Cone_Blue = 100000000
+    Distance_Cone_Red = 100000000000000
+    rc.drive.set_speed_angle(1, 0)
     """Initialize the robot"""
     pass
 
@@ -154,16 +162,17 @@ def update():
     global current_Cone
     global CloseDistance
     global TrunLeftValue, TurnRightValue
-    global Last_Turn
+    global Last_Turn    
     global current_time
-
+    global angle_error
     
     # Constants for turning and distance
 
     TurnRightValue = 0.7  
-    CloseDistance = 40  
+    CloseDistance = 100  
     Distance_To_Start_Alinement = 60
     TrunLeftValue = -TurnRightValue
+    
     
     # Get current camera images
     color_image = rc.camera.get_color_image()
@@ -183,60 +192,69 @@ def update():
         return
     
     # Red cone handling
-    if cur_state == State.red:
-        if contour_red is not None:
-            
-            # Calculate steering angle based on cone position
-            angle_error = (contour_center_red[1] - 320) / 320
-            print("Distance_Red:" + str(Distance_Cone_Red))
-            # If close to cone, turn right sharply
-            if Distance_Cone_Red < CloseDistance:
-                print("Good tone, good tone, Fox 10.")
-                current_time = rc.get_delta_time()
-                rc.drive.set_speed_angle(0.5, TurnRightValue)
-                Last_Turn = TurnRightValue
-            else:
-                # Otherwise, adjust to align with cone
-                if Distance_Cone_Red < Distance_To_Start_Alinement:
-                    rc.drive.set_speed_angle(1, angle_error)
-        else:
-            # If red cone lost, check for blue cone or go to search
-            cur_state = State.blue if contour_center_blue is not None else State.search
-    
-    # Blue cone handling
-    if cur_state == State.blue:
-        if contour_center_blue is not None:
-            # Calculate steering angle based on cone position
-            angle_error = (contour_center_blue[1] - 320) / 320
-            print("Distance_Blue:" + str(Distance_Cone_Blue))
-            # If close to cone, turn left sharply
-            if Distance_Cone_Blue < CloseDistance:
-                print("Fox 10 Blue")
-                current_time += rc.get_delta_time()
-                rc.drive.set_speed_angle(0.5, TrunLeftValue)
-                Last_Turn = TrunLeftValue
-            else:
-                if Distance_Cone_Red < Distance_To_Start_Alinement:
+    if Distance_Cone_Red < Distance_Cone_Blue :
+        print(f"Checking state: {cur_state}")
+        if cur_state == State.red:
+            print ("im edging")
+            if contour_center_red is not None:
+                
+                # Calculate steering angle based on cone position
+                angle_error = (contour_center_red[1] - 320) / 320
+                print("Distance_Red:" + str(Distance_Cone_Red))
+                # If close to cone, turn right sharply
+                if Distance_Cone_Red < CloseDistance:
+                    print("Good tone, good tone, Fox 10.")
+                    current_time += rc.get_delta_time()
+                    rc.drive.set_speed_angle(0.5, TurnRightValue)
+                    Last_Turn = TurnRightValue
+                else:
+                    if Distance_Cone_Red is not None:
                     # Otherwise, adjust to align with cone
-                    rc.drive.set_speed_angle(1, angle_error) 
+                        if Distance_Cone_Red < Distance_To_Start_Alinement:
+                            rc.drive.set_speed_angle(1, angle_error)
+            else:
+                # If red cone lost, check for blue cone or go to search
+                cur_state = State.blue if contour_center_blue is not None else State.search
+        
+    # Blue cone handling
+
+    if Distance_Cone_Red > Distance_Cone_Blue :
+        if cur_state == State.blue:
+            if contour_center_blue is not None:
+                # Calculate steering angle based on cone position
+                angle_error = (contour_center_blue[1] - 320) / 320
+                print("Distance_Blue:" + str(Distance_Cone_Blue))
+                # If close to cone, turn left sharply
+                if Distance_Cone_Blue < CloseDistance:
+                    print("Fox 10 Blue")
+                    current_time += rc.get_delta_time()
+                    rc.drive.set_speed_angle(0.5, TrunLeftValue)
+                    Last_Turn = TrunLeftValue
+            else:
+                if Distance_Cone_Blue is not None:
+                    if Distance_Cone_Blue < Distance_To_Start_Alinement:
+                        # Otherwise, adjust to align with cone
+                        rc.drive.set_speed_angle(1, angle_error) 
         else:
             # If blue cone lost, check for red cone or go to search
             cur_state = State.red if contour_red is not None else State.search
 
 
-    if Last_Turn == TurnRightValue and cur_state == State.search:
+    if Last_Turn == TurnRightValue:
         if current_time >= 1.5:
             rc.drive.set_speed_angle(1,TrunLeftValue)
             print("Counter turn left")
-            current_time = 0
-    elif Last_Turn == TrunLeftValue and cur_state == State.search:
+            if current_time >= 2.6:
+                current_time = 0
+    elif Last_Turn == TrunLeftValue:
         if current_time >= 1.5:
             rc.drive.set_speed_angle(1,TurnRightValue)
             print("Counter turn right")
-            current_time = 0.0
+            if current_time >= 2.6:
+                current_time = 0.0  
         
     
-    print(f"Current Time is :{current_time}")
+    print(f"Current Time is :{current_time} and Distance from cones Blue:{Distance_Cone_Blue} and Red:{Distance_Cone_Red}")
 def update_slow():
     """Slow update loop for non-critical operations"""
     pass
