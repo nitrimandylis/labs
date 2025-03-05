@@ -166,6 +166,7 @@ def update():
     global Last_Turn    
     global current_time
     global angle_error
+    global current_TurnValue
     
     # Constants for turning and distance
 
@@ -206,13 +207,19 @@ def update():
                 if Distance_Cone_Red < CloseDistance:
                     print("Good tone, good tone, Fox 10.")
                     current_time += rc.get_delta_time()
-                    rc.drive.set_speed_angle(0.5, TurnRightValue)
+                    current_TurnValue = TurnRightValue
+                    rc.drive.set_speed_angle(0.5, current_TurnValue)
                     Last_Turn = TurnRightValue
                 else:
                     if Distance_Cone_Red is not None:
                     # Otherwise, adjust to align with cone
+                        if Distance_Cone_Red > Distance_To_Start_Alinement:
+                            current_TurnValue = angle_error - 0.4
+                            rc.drive.set_speed_angle(1, current_TurnValue)
+
                         if Distance_Cone_Red < Distance_To_Start_Alinement and Distance_Cone_Red > CloseDistance:
-                            rc.drive.set_speed_angle(1, angle_error)
+                            current_TurnValue = angle_error
+                            rc.drive.set_speed_angle(1, current_TurnValue)
             else:
                 # If red cone lost, check for blue cone or go to search
                 cur_state = State.blue if contour_center_blue is not None else State.search
@@ -229,13 +236,19 @@ def update():
                 if Distance_Cone_Blue < CloseDistance:
                     print("Fox 10 Blue")
                     current_time += rc.get_delta_time()
-                    rc.drive.set_speed_angle(0.5, TrunLeftValue)
+                    current_TurnValue = TrunLeftValue
+                    rc.drive.set_speed_angle(0.5, current_TurnValue)
                     Last_Turn = TrunLeftValue
             else:
                 if Distance_Cone_Blue is not None:
+                    if Distance_Cone_Blue > Distance_To_Start_Alinement:
+                        current_TurnValue = angle_error - 0.4
+                        rc.drive.set_speed_angle(1, current_TurnValue)
+
                     if Distance_Cone_Blue < Distance_To_Start_Alinement and Distance_Cone_Blue > CloseDistance:
                         # Otherwise, adjust to align with cone
-                        rc.drive.set_speed_angle(1, angle_error) 
+                        current_TurnValue = angle_error
+                        rc.drive.set_speed_angle(1, current_TurnValue)
         else:
             # If blue cone lost, check for red cone or go to search
             cur_state = State.red if contour_red is not None else State.search
@@ -243,19 +256,22 @@ def update():
 
     if Last_Turn == TurnRightValue:
         if current_time >= 1.8:
-            rc.drive.set_speed_angle(1,TrunLeftValue)
+            current_TurnValue = TrunLeftValue
+            rc.drive.set_speed_angle(1,current_TurnValue)
             print("Counter turn left")
             if current_time >= 2.6:
                 current_time = 0
     elif Last_Turn == TrunLeftValue:
         if current_time >= 1.5:
-            rc.drive.set_speed_angle(1,TurnRightValue)
+            current_TurnValue = TurnRightValue
+            rc.drive.set_speed_angle(1,current_TurnValue)
             print("Counter turn right")
             if current_time >= 2.6:
                 current_time = 0.0  
         
     
     print(f"Current Time is :{current_time} and Distance from cones Blue:{Distance_Cone_Blue} and Red:{Distance_Cone_Red}")
+    print(f"Current Turn Value is :{current_TurnValue}")
 def update_slow():
     """Slow update loop for non-critical operations"""
     pass
