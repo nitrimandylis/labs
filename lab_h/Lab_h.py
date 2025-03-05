@@ -195,9 +195,9 @@ def update():
     
     # Red cone handling
     if Distance_Cone_Red < Distance_Cone_Blue :
-        print(f"Checking state: {cur_state}")
+        print(f"Checking state Red: {cur_state}")
         if cur_state == State.red:
-            print ("im edging")
+            print("Red Pass 1")
             if contour_center_red is not None:
                 
                 # Calculate steering angle based on cone position
@@ -227,13 +227,15 @@ def update():
     # Blue cone handling
 
     if Distance_Cone_Red > Distance_Cone_Blue :
+        print(f"Checking state Blue: {cur_state}")
         if cur_state == State.blue:
+            print("Blue Pass 1")
             if contour_center_blue is not None:
                 # Calculate steering angle based on cone position
                 angle_error = (contour_center_blue[1] - 320) / 320
                 print("Distance_Blue:" + str(Distance_Cone_Blue))
                 # If close to cone, turn left sharply
-                if Distance_Cone_Blue < CloseDistance:
+                if Distance_Cone_Blue < CloseDistance and Distance_Cone_Red != 0 or Distance_Cone_Red > 10000000:
                     print("Fox 10 Blue")
                     current_time += rc.get_delta_time()
                     current_TurnValue = TrunLeftValue
@@ -255,12 +257,12 @@ def update():
 
 
     if Last_Turn == TurnRightValue:
-        if current_time >= 1.8:
+        if current_time >= 1.5:
             current_TurnValue = TrunLeftValue
             rc.drive.set_speed_angle(1,current_TurnValue)
             print("Counter turn left")
             if current_time >= 2.6:
-                current_time = 0
+                current_time = 0.0
     elif Last_Turn == TrunLeftValue:
         if current_time >= 1.5:
             current_TurnValue = TurnRightValue
