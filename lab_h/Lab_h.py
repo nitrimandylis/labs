@@ -147,11 +147,14 @@ def start():
     global Last_Turn
     global Distance_Cone_Red, Distance_Cone_Blue
     global angle_error
+    global current_TurnValue
     angle_error = 0
     Last_Turn = None
     current_time = 0
-    Distance_Cone_Blue = 100000000
-    Distance_Cone_Red = 100000000000000
+    Distance_Cone_Red = None
+    Distance_Cone_Blue = None
+    current_TurnValue = None
+    
     rc.drive.set_speed_angle(1, 0)
     """Initialize the robot"""
     pass
@@ -168,14 +171,18 @@ def update():
     global angle_error
     global current_TurnValue
     global Time_start, Time_end
+    global Distance_Cone_Blue , Distance_Cone_Red
     
     # Constants for turning and distance
     Time_start = 2
-    Time_end = 3
+    Time_end = 2.7
     TurnRightValue = 0.7  
     CloseDistance = 100  
     Distance_To_Start_Alinement = 160
     TrunLeftValue = -TurnRightValue
+    Distance_Cone_Red = None
+    Distance_Cone_Blue = None
+    current_TurnValue = None
     
     
     # Get current camera images
@@ -185,10 +192,17 @@ def update():
     # Update contour detection
     update_contours(color_image, depth_image)
     
+    if Distance_Cone_Red is None:
+        Distance_Cone_Red = 100000000000000
+    if Distance_Cone_Blue is None:
+        Distance_Cone_Blue = 100000000000000
+
+
     # Search state - random exploration
     if cur_state == State.search:
         if contour_red is None and contour_blue is None:
-            rc.drive.set_speed_angle(0.5, random.uniform(-1, 1))
+            current_TurnValue =  random.uniform(-1, 1)
+            rc.drive.set_speed_angle(0.5, current_TurnValue)
         elif contour_blue is None and contour_red is not None:
             cur_state = State.red
         elif contour_red is None and contour_blue is not None:
@@ -199,6 +213,10 @@ def update():
     if Distance_Cone_Red < Distance_Cone_Blue :
         print(f"Checking state Red: {cur_state}")
         current_time += rc.get_delta_time()
+
+        if current_time >= Time_end:
+            current_time = 0
+            print("Time Zeroed Red")
         if cur_state == State.red:
             print("Red Pass 1")
             if contour_center_red is not None:
@@ -226,9 +244,12 @@ def update():
         
     # Blue cone handling
 
-    if Distance_Cone_Red > Distance_Cone_Blue :
+    if Distance_Cone_Blue < Distance_Cone_Red :
         print(f"Checking state Blue: {cur_state}")
         current_time += rc.get_delta_time()
+        if current_time >= Time_end:
+            current_time = 0
+            print("Time Zeroed Blue")
         if cur_state == State.blue:
             print("Blue Pass 1")
             if contour_center_blue is not None:
@@ -257,23 +278,26 @@ def update():
 
 
     if Last_Turn == TurnRightValue:
-        if current_time >= Time_start:
+        if current_time >= Time_start and Distance_Cone_Blue > Distance_To_Start_Alinement and CloseDistance > Distance_Cone_Red or Distance_Cone_Red > 1000 and current_time >= Time_start and Distance_Cone_Blue > Distance_To_Start_Alinement:
             current_TurnValue = TrunLeftValue
-            rc.drive.set_speed_angle(1,current_TurnValue)
+            rc.drive.set_speed_angle(0.5,current_TurnValue)
             print("Counter turn left")
             if current_time >= Time_end:
                 current_time = 0.0
     elif Last_Turn == TrunLeftValue:
-        if current_time >= Time_start:
+        if current_time >= Time_start and Distance_Cone_Red > Distance_To_Start_Alinement and CloseDistance > Distance_Cone_Blue or Distance_Cone_Blue > 1000 and current_time >= Time_start and Distance_Cone_Red > Distance_To_Start_Alinement:
             current_TurnValue = TurnRightValue
-            rc.drive.set_speed_angle(1,current_TurnValue)
+            rc.drive.set_speed_angle(0.5,current_TurnValue)
             print("Counter turn right")
             if current_time >= Time_end:
-                current_time = 0.0  
-        
+                current_time = 0.0
+
+        # is Trun right 0.7
+        # is trun left -0.7 
     
     print(f"Current Time is :{current_time} and Distance from cones Blue:{Distance_Cone_Blue} and Red:{Distance_Cone_Red}")
-    print(f"Current Turn Value is :{current_TurnValue}")
+    print(f"Current Turn Value is :{current_TurnValue} And Last Trun Was {Last_Turn}")
+
 def update_slow():
     """Slow update loop for non-critical operations"""
     pass
