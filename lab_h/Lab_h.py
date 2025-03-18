@@ -14,7 +14,6 @@ RED = ((160, 0, 0), (179, 255, 255))
 BLUE = ((90, 120, 120), (120, 255, 255))
 
 class State(Enum):
-
     search = 0
     red = 1
     blue = 2
@@ -25,13 +24,28 @@ class Current_Cone(Enum):
     BLUE = 1
     NOTHING = 3
 
+# Global constants
+MIN_CONTOUR_AREA = 800
+MAX_DISTANCE = 1000000  # More reasonable value for "not found" distance
+
+# Configuration parameters
+Time_start = 2
+Time_end = 2.7
+TurnRightValue = 0.7
+CloseDistance = 70
+Distance_To_Start_Alinement = 160
+
+# Global variables
 cur_state = State.red
 current_Cone = Current_Cone.NOTHING
-
 speed = 0.0
 angle = 0.0
 last_distance = 0
 counter = 0
+current_time = 0
+angle_error = 0
+Last_Turn = None
+current_TurnValue = None
 
 contour_red = None
 contour_blue = None
@@ -42,8 +56,7 @@ contour_area = 0
 Distance_Cone_Red = None
 Distance_Cone_Blue = None
 
-def update_contours(image,image_depth):
-
+def update_contours(image, image_depth):
     global cur_state
     global current_Cone
     global Distance_Cone_Red
@@ -54,9 +67,6 @@ def update_contours(image,image_depth):
     global contour_blue
     global contour_center_red
     global contour_center_blue
-    global MIN_CONTOUR_AREA
-
-    MIN_CONTOUR_AREA = 800
 
     if image is None:
         contour_center = None
@@ -67,7 +77,6 @@ def update_contours(image,image_depth):
         contour_center_blue = None
         Distance_Cone_Red = None
         Distance_Cone_Blue = None
-        print("ERROR No image")
         return (Current_Cone.NOTHING, None, 0, None)
     else:
         contours_red = rc_utils.find_contours(image, RED[0], RED[1])
@@ -80,84 +89,82 @@ def update_contours(image,image_depth):
         contour_center_blue = None
         if contour_red is not None:
             contour_center_red = rc_utils.get_contour_center(contour_red)
+            rc_utils.draw_contour(image, contour_red, (255, 0, 0))
+        
         if contour_blue is not None:
             contour_center_blue = rc_utils.get_contour_center(contour_blue)
-
-        if contour_red is not None:
-            rc_utils.draw_contour(image, contour_red)
-        if contour_blue is not None:
-            rc_utils.draw_contour(image, contour_blue)
+            rc_utils.draw_contour(image, contour_blue, (0, 0, 255))
+        
+        # Add debug text to the image
+        font = cv.FONT_HERSHEY_COMPLEX
+        text_color = (255, 255, 255)  # White text
+        
+        # Display state
+        cv.putText(image, f"State: {cur_state.name}", (10, 20), font, 0.5, text_color, 1)
+        
+        # Display distances
+        red_dist_text = f"Red dist: {Distance_Cone_Red:.1f}" if Distance_Cone_Red is not None else "Red dist: None"
+        blue_dist_text = f"Blue dist: {Distance_Cone_Blue:.1f}" if Distance_Cone_Blue is not None else "Blue dist: None"
+        cv.putText(image, red_dist_text, (10, 40), font, 0.5, text_color, 1)
+        cv.putText(image, blue_dist_text, (10, 60), font, 0.5, text_color, 1)
+        
+        # Display time
+        cv.putText(image, f"Time: {current_time:.2f}", (10, 80), font, 0.5, text_color, 1)
+        
         rc.display.show_color_image(image)
 
-        Distance_Cone_Red = None
-        Distance_Cone_Blue = None
+        Distance_Cone_Red = MAX_DISTANCE
+        Distance_Cone_Blue = MAX_DISTANCE
+        
         if image_depth is not None:
             if contour_red is not None and contour_center_red is not None:
                 try:
-                    Distance_Cone_Red = image_depth[contour_center_red[0]][contour_center_red[1]]
-                    if Distance_Cone_Red == 0:
-                        Distance_Cone_Red = 100000
+                    depth = image_depth[contour_center_red[0]][contour_center_red[1]]
+                    Distance_Cone_Red = depth if depth > 0 else MAX_DISTANCE
                 except:
-                    print("Error accessing depth for red cone")
-                    Distance_Cone_Red = None
+                    Distance_Cone_Red = MAX_DISTANCE
+                    
             if contour_blue is not None and contour_center_blue is not None:
                 try:
-                    Distance_Cone_Blue = image_depth[contour_center_blue[0]][contour_center_blue[1]]
-                    if Distance_Cone_Blue == 0:
-                        Distance_Cone_Blue = 100000
+                    depth = image_depth[contour_center_blue[0]][contour_center_blue[1]]
+                    Distance_Cone_Blue = depth if depth > 0 else MAX_DISTANCE
                 except:
-                    print("Error accessing depth for blue cone")
-                    Distance_Cone_Blue = None
+                    Distance_Cone_Blue = MAX_DISTANCE
                             
         if contour_red is not None and contour_blue is None:
             cur_state = State.red
-            contour_center = rc_utils.get_contour_center(contour_red)
+            contour_center = contour_center_red
             cone_Selected = Current_Cone.RED
-            print("Pre check")
-            print(f"Current State is : {cur_state}")
             contour_area = rc_utils.get_contour_area(contour_red)
             return (cone_Selected, contour_center, contour_area, contour_red)
 
         if contour_blue is not None and contour_red is None:
             cur_state = State.blue
-            contour_center = rc_utils.get_contour_center(contour_blue)
+            contour_center = contour_center_blue
             contour_area = rc_utils.get_contour_area(contour_blue)
             cone_Selected = Current_Cone.BLUE
-            print("cur_state = State.blue")
             return (cone_Selected, contour_center, contour_area, contour_blue)
 
-        if contour_red is not None and contour_blue is not None:
-            if Distance_Cone_Red is None:
-                Distance_Cone_Red = 100000
-            if Distance_Cone_Blue is None:
-                Distance_Cone_Blue = 100000
-                
+        if contour_red is not None and contour_blue is not None:                
             if Distance_Cone_Red < Distance_Cone_Blue:
-                contour_center = rc_utils.get_contour_center(contour_red)
+                contour_center = contour_center_red
                 contour_area = rc_utils.get_contour_area(contour_red)
                 cone_Selected = Current_Cone.RED
-                cur_state = State.red  
-                print("Pre Check")
-                print(f"Curent State : {cur_state}")
+                cur_state = State.red
                 return (cone_Selected, contour_center, contour_area, contour_red)
             else:
-                contour_center = rc_utils.get_contour_center(contour_blue)
+                contour_center = contour_center_blue
                 contour_area = rc_utils.get_contour_area(contour_blue)
                 cone_Selected = Current_Cone.BLUE
-                cur_state = State.blue 
-                print("cur_state = State.blue")
+                cur_state = State.blue
                 return (cone_Selected, contour_center, contour_area, contour_blue)
         
         return (Current_Cone.NOTHING, None, 0, None)
 
 def start():
-    global current_time
-    global Last_Turn
+    global current_time, Last_Turn, angle_error, current_TurnValue
     global Distance_Cone_Red, Distance_Cone_Blue
-    global angle_error
-    global current_TurnValue
-    global contour_red, contour_blue
-    global contour_center_red, contour_center_blue
+    global contour_red, contour_blue, contour_center_red, contour_center_blue
     
     angle_error = 0
     Last_Turn = None
@@ -171,27 +178,14 @@ def start():
     contour_center_blue = None
     
     rc.drive.set_speed_angle(1, 0)
-    pass
 
 def update():
-    global cur_state
-    global current_Cone
-    global CloseDistance
-    global TrunLeftValue, TurnRightValue
-    global Last_Turn    
-    global current_time
-    global angle_error
-    global current_TurnValue
-    global Time_start, Time_end
+    global cur_state, current_Cone, Last_Turn    
+    global current_time, angle_error, current_TurnValue
     global Distance_Cone_Blue, Distance_Cone_Red
-    global contour_red, contour_blue
-    global contour_center_red, contour_center_blue
+    global contour_red, contour_blue, contour_center_red, contour_center_blue
     
-    Time_start = 2
-    Time_end = 2.7
-    TurnRightValue = 0.7  
-    CloseDistance = 70  
-    Distance_To_Start_Alinement = 160
+    # Calculate TrunLeftValue based on TurnRightValue
     TrunLeftValue = -TurnRightValue
     current_TurnValue = None
     
@@ -200,11 +194,7 @@ def update():
     
     update_contours(color_image, depth_image)
     
-    if Distance_Cone_Red is None:
-        Distance_Cone_Red = 1000000000000000
-    if Distance_Cone_Blue is None:
-        Distance_Cone_Blue = 100000000000000
-
+    # Handle search state
     if cur_state == State.search:
         if contour_red is None and contour_blue is None:
             current_TurnValue = random.uniform(-1, 1)
@@ -217,21 +207,18 @@ def update():
         rc.drive.set_speed_angle(0.5, current_TurnValue)
         return
     
+    # Update timer
+    current_time += rc.get_delta_time()
+    if current_time >= Time_end:
+        current_time = 0
+    
     # Red cone handling
-    if Distance_Cone_Red < Distance_Cone_Blue :
-        print(f"Checking state Red: {cur_state}")
-        current_time += rc.get_delta_time()
-
-        if current_time >= Time_end:
-            current_time = 0
-            print("Time Zeroed Red")
+    if Distance_Cone_Red < Distance_Cone_Blue:
         if cur_state == State.red:
-            print("Red Pass 1")
             if contour_center_red is not None:
                 angle_error = (contour_center_red[1] - 320) / 320
-                print("Distance_Red:" + str(Distance_Cone_Red))
-                if Distance_Cone_Red < CloseDistance and Distance_Cone_Red != 0 or Distance_Cone_Red > 10000000:
-                    print("Good tone, good tone, Fox 10.")
+                
+                if Distance_Cone_Red < CloseDistance or Distance_Cone_Red > MAX_DISTANCE / 2:
                     current_TurnValue = TurnRightValue
                     Last_Turn = TurnRightValue
                 else:
@@ -243,55 +230,60 @@ def update():
                         current_TurnValue = angle_error
             else:
                 cur_state = State.blue if contour_center_blue is not None else State.search
-        
+    
     # Blue cone handling
-
-    if Distance_Cone_Blue < Distance_Cone_Red :
-        print(f"Checking state Blue: {cur_state}")
-        current_time += rc.get_delta_time()
-        if current_time >= Time_end:
-            current_time = 0
-            print("Time Zeroed Blue")
+    if Distance_Cone_Blue < Distance_Cone_Red:
         if cur_state == State.blue:
-            print("Blue Pass 1")
             if contour_center_blue is not None:
                 angle_error = (contour_center_blue[1] - 320) / 320
-                print("Distance_Blue:" + str(Distance_Cone_Blue))
-                if Distance_Cone_Blue < CloseDistance and Distance_Cone_Blue != 0 or Distance_Cone_Blue > 10000000:
-                    print("Fox 10 Blue")
+                
+                if Distance_Cone_Blue < CloseDistance or Distance_Cone_Blue > MAX_DISTANCE / 2:
                     current_TurnValue = TrunLeftValue
                     Last_Turn = TrunLeftValue
-            elif Distance_Cone_Blue is not None:
-                if Distance_Cone_Blue > Distance_To_Start_Alinement:
-                    current_TurnValue = angle_error - 0.4
-                    rc.drive.set_speed_angle(1, current_TurnValue)
+                else:
+                    if Distance_Cone_Blue > Distance_To_Start_Alinement:
+                        current_TurnValue = angle_error - 0.4
+                    elif Distance_Cone_Blue < Distance_To_Start_Alinement and Distance_Cone_Blue > CloseDistance:
+                        current_TurnValue = angle_error
+                    else:
+                        current_TurnValue = angle_error
+            else:
+                cur_state = State.red if contour_red is not None else State.search
 
-                if Distance_Cone_Blue < Distance_To_Start_Alinement and Distance_Cone_Blue > CloseDistance:
-                    # Otherwise, adjust to align with cone
-                    current_TurnValue = angle_error
-                    rc.drive.set_speed_angle(1, current_TurnValue)
-        else:
-            cur_state = State.red if contour_red is not None else State.search
-
-
+    # Counter-turning logic
     if Last_Turn == TurnRightValue:
-        if current_time >= Time_start and Distance_Cone_Blue > Distance_To_Start_Alinement and CloseDistance > Distance_Cone_Red or Distance_Cone_Red > 1000 and current_time >= Time_start and Distance_Cone_Blue > Distance_To_Start_Alinement:
+        if (current_time >= Time_start and 
+            Distance_Cone_Blue > Distance_To_Start_Alinement and 
+            (CloseDistance > Distance_Cone_Red or Distance_Cone_Red > 1000)):
             current_TurnValue = TrunLeftValue
-            print("Counter turn left")
-            if current_time >= Time_end:
-                current_time = 0.0
     elif Last_Turn == TrunLeftValue:
-        if current_time >= Time_start and Distance_Cone_Red > Distance_To_Start_Alinement and CloseDistance > Distance_Cone_Blue or Distance_Cone_Blue > 1000 and current_time >= Time_start and Distance_Cone_Red > Distance_To_Start_Alinement :
+        if (current_time >= Time_start and 
+            Distance_Cone_Red > Distance_To_Start_Alinement and 
+            (CloseDistance > Distance_Cone_Blue or Distance_Cone_Blue > 1000)):
             current_TurnValue = TurnRightValue
-            print("Counter turn right")
-            if current_time >= Time_end:
-                current_time = 0.0
     
-    print(f"Current Time is :{current_time} and Distance from cones Blue:{Distance_Cone_Blue} and Red:{Distance_Cone_Red}")
-    print(f"Current Turn Value is :{current_TurnValue} And Last Trun Was {Last_Turn}")
-    
+    # Set default if no turn value was set
     if current_TurnValue is None:
         current_TurnValue = 0
+    
+    # Clamp current_TurnValue between -1 and 1
+    current_TurnValue = max(-1, min(1, current_TurnValue))
+    
+    # Update debug display with final values
+    if color_image is not None:
+        font = cv.FONT_HERSHEY_COMPLEX
+        text_color = (255, 255, 255)  # White text
+        
+        # Display angle error and turn value
+        cv.putText(color_image, f"Angle error: {angle_error:.2f}", (10, 100), font, 0.5, text_color, 1)
+        cv.putText(color_image, f"Turn value: {current_TurnValue:.2f}", (10, 120), font, 0.5, text_color, 1)
+        
+        # Display last turn direction
+        last_turn_text = f"Last turn: {Last_Turn:.2f}" if Last_Turn is not None else "Last turn: None"
+        cv.putText(color_image, last_turn_text, (10, 140), font, 0.5, text_color, 1)
+        
+        rc.display.show_color_image(color_image)
+    
     rc.drive.set_speed_angle(0.5, current_TurnValue)
 
 def update_slow():
