@@ -190,7 +190,7 @@ def update():
     Time_start = 2
     Time_end = 2.7
     TurnRightValue = 0.7  
-    CloseDistance = 100  
+    CloseDistance = 70  
     Distance_To_Start_Alinement = 160
     TrunLeftValue = -TurnRightValue
     current_TurnValue = None
@@ -201,7 +201,7 @@ def update():
     update_contours(color_image, depth_image)
     
     if Distance_Cone_Red is None:
-        Distance_Cone_Red = 100000000000000
+        Distance_Cone_Red = 1000000000000000
     if Distance_Cone_Blue is None:
         Distance_Cone_Blue = 100000000000000
 
@@ -217,10 +217,11 @@ def update():
         rc.drive.set_speed_angle(0.5, current_TurnValue)
         return
     
-    if Distance_Cone_Red < Distance_Cone_Blue:
+    # Red cone handling
+    if Distance_Cone_Red < Distance_Cone_Blue :
         print(f"Checking state Red: {cur_state}")
-        if Distance_Cone_Red < Distance_To_Start_Alinement:
-            current_time += rc.get_delta_time()
+        current_time += rc.get_delta_time()
+
         if current_time >= Time_end:
             current_time = 0
             print("Time Zeroed Red")
@@ -243,10 +244,11 @@ def update():
             else:
                 cur_state = State.blue if contour_center_blue is not None else State.search
         
-    if Distance_Cone_Blue < Distance_Cone_Red:
+    # Blue cone handling
+
+    if Distance_Cone_Blue < Distance_Cone_Red :
         print(f"Checking state Blue: {cur_state}")
-        if Distance_Cone_Blue < Distance_To_Start_Alinement:
-            current_time += rc.get_delta_time()
+        current_time += rc.get_delta_time()
         if current_time >= Time_end:
             current_time = 0
             print("Time Zeroed Blue")
@@ -259,11 +261,15 @@ def update():
                     print("Fox 10 Blue")
                     current_TurnValue = TrunLeftValue
                     Last_Turn = TrunLeftValue
-                else:
-                    if Distance_Cone_Blue > Distance_To_Start_Alinement:
-                        current_TurnValue = angle_error - 0.4
-                    elif Distance_Cone_Blue < Distance_To_Start_Alinement and Distance_Cone_Blue > CloseDistance:
-                        current_TurnValue = angle_error
+            elif Distance_Cone_Blue is not None:
+                if Distance_Cone_Blue > Distance_To_Start_Alinement:
+                    current_TurnValue = angle_error - 0.4
+                    rc.drive.set_speed_angle(1, current_TurnValue)
+
+                if Distance_Cone_Blue < Distance_To_Start_Alinement and Distance_Cone_Blue > CloseDistance:
+                    # Otherwise, adjust to align with cone
+                    current_TurnValue = angle_error
+                    rc.drive.set_speed_angle(1, current_TurnValue)
         else:
             cur_state = State.red if contour_red is not None else State.search
 
