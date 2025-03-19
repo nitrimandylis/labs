@@ -29,12 +29,12 @@ MIN_CONTOUR_AREA = 800
 MAX_DISTANCE = 1000000  # More reasonable value for "not found" distance
 
 # Configuration parameters
-Time_start = 2
-Time_end = 2.7
+Time_start = 4
+Time_end = 6
 TurnRightValue = 0.7
 TrunLeftValue = -0.7
 CloseDistance = 70
-Distance_To_Start_Alinement = 160
+Distance_To_Start_Alinement = 120
 
 # Global variables
 cur_state = State.red
@@ -497,7 +497,7 @@ def update():
         
         rc.display.show_color_image(color_image)
     
-    rc.drive.set_speed_angle(0.5, current_TurnValue)
+    rc.drive.set_speed_angle(0.3, current_TurnValue)
 
 def update_slow():
     pass
