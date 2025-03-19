@@ -29,12 +29,12 @@ MIN_CONTOUR_AREA = 800
 MAX_DISTANCE = 1000000  # More reasonable value for "not found" distance
 
 # Configuration parameters
-Time_start = 4
-Time_end = 6
+Time_start = 2.45
+Time_end = 3.6
 TurnRightValue = 0.7
 TrunLeftValue = -0.7
 CloseDistance = 70
-Distance_To_Start_Alinement = 120
+Distance_To_Start_Alinement = 130
 
 # Global variables
 cur_state = State.red
@@ -301,6 +301,7 @@ def update_contours(image, image_depth):
                 elif cur_state == State.red:
                     cv.circle(display_image, (cone_x, cone_y), 7, (0, 255, 0), 1)  # Green circle for next cone
             
+            
             # Add a mini legend for the mini-map
             legend_y = map_center[1] + map_size // 2 + 10
             cv.putText(display_image, "Map:", (display_image.shape[1] - 85, legend_y), font, 0.4, (200, 200, 200), 1)
@@ -425,12 +426,12 @@ def update():
         current_time = 0
     
     # Red cone handling
-    if Distance_Cone_Red < Distance_Cone_Blue:
+    if Distance_Cone_Red < Distance_Cone_Blue and Distance_Cone_Red < Distance_To_Start_Alinement:
         if cur_state == State.red:
             if contour_center_red is not None:
                 angle_error = (contour_center_red[1] - 320) / 320
                 
-                if Distance_Cone_Red < CloseDistance or Distance_Cone_Red > MAX_DISTANCE / 2:
+                if Distance_Cone_Red < CloseDistance :
                     current_TurnValue = TurnRightValue
                     Last_Turn = TurnRightValue
                 else:
@@ -444,12 +445,12 @@ def update():
                 cur_state = State.blue if contour_center_blue is not None else State.search
     
     # Blue cone handling
-    if Distance_Cone_Blue < Distance_Cone_Red:
+    if Distance_Cone_Blue < Distance_Cone_Red and Distance_Cone_Blue < Distance_To_Start_Alinement:
         if cur_state == State.blue:
             if contour_center_blue is not None:
                 angle_error = (contour_center_blue[1] - 320) / 320
                 
-                if Distance_Cone_Blue < CloseDistance or Distance_Cone_Blue > MAX_DISTANCE / 2:
+                if Distance_Cone_Blue < CloseDistance :
                     current_TurnValue = TrunLeftValue
                     Last_Turn = TrunLeftValue
                 else:
@@ -497,7 +498,7 @@ def update():
         
         rc.display.show_color_image(color_image)
     
-    rc.drive.set_speed_angle(0.3, current_TurnValue)
+    rc.drive.set_speed_angle(0.5, current_TurnValue)
 
 def update_slow():
     pass
