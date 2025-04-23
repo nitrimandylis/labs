@@ -33,6 +33,11 @@ SCAN_WINDOW = 20    # Width of LIDAR scan window in degrees
 # LIDAR angles
 RIGHT_SIDE = 60     # Angle for right wall (60° = 2 o'clock position)
 LEFT_SIDE = 300     # Angle for left wall (300° = 10 o'clock position)
+FRONT_CENTER = 0    # Angle for front detection (0° = directly ahead)
+
+# Obstacle avoidance constants
+FRONT_SCAN_ANGLE = 60  # Total width of front scanning window in degrees
+OBSTACLE_THRESHOLD =  70  # Distance in cm to consider an obstacle dangerous
 
 ########################################################################################
 # Functions
@@ -51,6 +56,75 @@ def get_wall_distances() -> Tuple[float, float]:
     left_dist = rc_utils.get_lidar_average_distance(scan, LEFT_SIDE, SCAN_WINDOW)
     
     return left_dist, right_dist
+
+
+def check_front_obstacle() -> Tuple[bool, float, float]:
+    """
+    Check for obstacles in front of the car
+    Returns: (obstacle_detected, min_distance, angle_to_obstacle)
+    """
+    scan = rc.lidar.get_samples()
+    if scan is None:
+        return False, 0, 0
+    
+    # Get front scan area (from -FRONT_SCAN_ANGLE/2 to +FRONT_SCAN_ANGLE/2)
+    front_scan_start = len(scan) // 2 - FRONT_SCAN_ANGLE // 2
+    front_scan_end = len(scan) // 2 + FRONT_SCAN_ANGLE // 2
+    
+    # Find minimum distance in front area
+    min_dist = float('inf')
+    min_angle_index = 0
+    
+    for i in range(front_scan_start, front_scan_end):
+        # Use modulo to handle wrap-around at the end of the array
+        idx = i % len(scan)
+        if 0 < scan[idx] < min_dist:
+            min_dist = scan[idx]
+            min_angle_index = idx
+    
+    # Convert index to angle (-180 to 180 degrees)
+    angle = ((min_angle_index * 360) // len(scan)) % 360
+    if angle > 180:
+        angle -= 360  # Convert to -180 to 180 range
+    
+    # Check if obstacle is detected (distance below threshold)
+    obstacle_detected = min_dist < OBSTACLE_THRESHOLD
+    
+    return obstacle_detected, min_dist, angle
+
+
+def find_clear_path() -> float:
+    """
+    Find the clearest path around obstacles
+    Returns: steering angle (-1 to 1) toward the clearest path
+    """
+    scan = rc.lidar.get_samples()
+    if scan is None:
+        return 0
+    
+    # Search a wider area to find the best path
+    search_width = 150  # degrees
+    search_start = len(scan) // 2 - search_width // 2
+    search_end = len(scan) // 2 + search_width // 2
+    
+    # Find the farthest point (clearest path)
+    max_dist = 0
+    best_angle_index = len(scan) // 2  # Default to straight ahead
+    
+    for i in range(search_start, search_end):
+        idx = i % len(scan)
+        if scan[idx] > max_dist:
+            max_dist = scan[idx]
+            best_angle_index = idx
+    
+    # Convert index to angle (-180 to 180 degrees)
+    angle = ((best_angle_index * 360) // len(scan)) % 360
+    if angle > 180:
+        angle -= 360
+    
+    # Map angle to steering range (-1 to 1)
+    steering = rc_utils.remap_range(angle, -60, 60, -1, 1)
+    return rc_utils.clamp(steering, -1, 1)
 
 
 def calculate_steering_angle(left_dist: float, right_dist: float) -> float:
@@ -78,12 +152,15 @@ def show_lidar_points():
     # Get the points we're using for wall tracking
     right_points = []
     left_points = []
+    front_points = []
     
     # Calculate angle ranges
     right_start = RIGHT_SIDE - SCAN_WINDOW // 2
     right_end = RIGHT_SIDE + SCAN_WINDOW // 2
     left_start = LEFT_SIDE - SCAN_WINDOW // 2
     left_end = LEFT_SIDE + SCAN_WINDOW // 2
+    front_start = len(scan) // 2 - FRONT_SCAN_ANGLE // 2
+    front_end = len(scan) // 2 + FRONT_SCAN_ANGLE // 2
     
     # Collect points in the scan windows
     for angle in range(right_start, right_end):
@@ -97,9 +174,16 @@ def show_lidar_points():
             # Convert array index to LIDAR angle (clockwise from front)
             lidar_angle = (angle * 360) // len(scan)
             left_points.append((lidar_angle, scan[angle]))
+
+    # Add front scan points
+    for i in range(front_start, front_end):
+        idx = i % len(scan)
+        if 0 < scan[idx] < 1000:
+            lidar_angle = (idx * 360) // len(scan)
+            front_points.append((lidar_angle, scan[idx]))
     
     # Combine all points to highlight
-    highlighted_points = right_points + left_points
+    highlighted_points = right_points + left_points + front_points
     
     rc.display.create_window()
     rc.display.show_lidar(scan, radius=512, max_range=1000, highlighted_samples=highlighted_points)
@@ -111,6 +195,12 @@ def start():
     """
     # Start with the car stopped
     rc.drive.set_max_speed(0.2)
+    global counter
+    counter = 0
+    global angle
+    angle = 0
+    global speed
+    speed = 1
     rc.drive.stop()
 
 
@@ -120,27 +210,47 @@ def update():
     is pressed
     """
     # Get LIDAR scan
+
+    global counter, angle, speed
+
     scan = rc.lidar.get_samples()
     if scan is None:
         return
     
+    # First check for obstacles in front
+    obstacle_detected, obstacle_distance, obstacle_angle = check_front_obstacle()
+    
     # Get distances to walls on both sides
     left_dist, right_dist = get_wall_distances()
     
-    # Calculate appropriate steering angle
-    angle = calculate_steering_angle(left_dist, right_dist)
-    
-    # Use max speed since speed control is handled by the angle calculation
-    speed = MAX_SPEED
-    print("left_dist: ", left_dist, "right_dist: ", right_dist)
+    # Determine speed based on environment
     if right_dist > 150 and left_dist > 150:
         rc.drive.set_max_speed(1)
     elif right_dist > 80 and left_dist > 80:
         rc.drive.set_max_speed(0.5)
     elif right_dist < 80 and left_dist < 80:
         rc.drive.set_max_speed(0.2)
+    
+    # Calculate steering angle
+    if obstacle_detected:
+        # If obstacle is detected, find clear path around it
+        angle = find_clear_path()
+        counter += rc.get_delta_time()
+        # Reduce speed when avoiding obstacles
+        speed = rc_utils.remap_range(obstacle_distance, 0, OBSTACLE_THRESHOLD, 0.2, 0.5)
+        speed = 1
+        
+        print(f"OBSTACLE DETECTED! Distance: {obstacle_distance:.1f}cm, Steering: {angle:.2f}")
+    elif counter > 3 or not obstacle_detected and counter == 0:
+        # No obstacles, use normal wall following
+        
+        angle = calculate_steering_angle(left_dist, right_dist)
+        speed = 1.0
+        print("Wall following - left_dist: ", left_dist, "right_dist: ", right_dist)
+    
     # Set the speed and angle
-    rc.drive.set_speed_angle(1, angle)
+    print(counter)
+    rc.drive.set_speed_angle(speed, angle)
     
     show_lidar_points()
 

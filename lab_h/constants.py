@@ -1,8 +1,11 @@
 """
-Copyright MIT and Harvey Mudd College
-MIT License
-Summer 2020
+File Name: constants.py
 
+Title: Cone Slalom with Checkered Line Detection
+
+Purpose: Navigate a slalom course by following red and blue cones, and detect a checkered finish line.
+
+Expected Outcome: The car will perform a slalom around cones and follow a checkered line when detected.
 """
 
 ########################################################################################
@@ -68,6 +71,8 @@ gate_counter = None
 # Functions
 ########################################################################################
 
+# [FUNCTION] Finds contours in the current color image and uses them to update contour_center
+# and contour_area
 def update_contour():
     """
     Finds contours in the current color image and uses them to update contour_center
@@ -124,10 +129,12 @@ def update_contour():
         # rc.display.show_color_image(image)
     
 
+# [FUNCTION] Check if a BGR value is in the blue range
 def is_blue(bgr_value):
     return 100 < bgr_value[0]
 
 
+# [FUNCTION] Detect checkered pattern in the camera image
 def detect_checkered_line():
     """
     Checkerboard pattern detector specifically optimized for the simulation environment.
@@ -243,6 +250,7 @@ def detect_checkered_line():
     return False, 0
 
 
+# [FUNCTION] The start function is run once every time the start button is pressed
 def start():
     """
     This function is run once every time the start button is pressed
@@ -260,13 +268,13 @@ def start():
     gate_counter = 0
 
 
-
+# [FUNCTION] Update the timer with the elapsed time since the last frame
 def update_timer():
     global timer
     timer += rc.get_delta_time()
     
 
-
+# [FUNCTION] Calculate the angle to steer through a gate
 def get_gate_angle() -> float:
     kpa = 0.001
     angle1 = kpa * (contour_center[0][1] - (rc.camera.get_width() / 2))
@@ -274,6 +282,8 @@ def get_gate_angle() -> float:
     return min(1.0, max(-1.0, (angle1 + angle2)/2))
 
 
+# [FUNCTION] After start() is run, this function is run every frame until the back button
+# is pressed
 def update():
     global timer, cur_state, color_image, contour_center, contour_area, gate_counter, gate , ProgramTime
     """
