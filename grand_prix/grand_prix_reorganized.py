@@ -53,7 +53,7 @@ COLORS = [
 
 # LIDAR windows
 LEFT_WINDOW = (-45, -15)
-RIGHT_WINDOW = (15, 45)move
+RIGHT_WINDOW = (15, 45)
 FRONT_WINDOW = (-10, 10)  # Window for directly in front of the car
 
 # Core control variables
@@ -644,7 +644,7 @@ def stop_WALL_FOLLOWING_ID_3():
     # If the path is clear again, start moving
     if front_distance > 40:
         cur_state = State.MOVE
-        print("Path is clear, resuming MOVEment")
+        print("Path is clear, resuming movement")
 
 def turn_WALL_FOLLOWING_ID_3():
     global left_angle
@@ -693,7 +693,7 @@ def turn_WALL_FOLLOWING_ID_3():
     
     speed = 0.7
 
-def MOVE_WALL_FOLLOWING_ID_3():
+def move_WALL_FOLLOWING_ID_3():
     global speed
     global angle
     global left_distance
@@ -707,7 +707,7 @@ def MOVE_WALL_FOLLOWING_ID_3():
     
     # Check if we need to turn based on wall distances
     if abs(left_distance-right_distance) > 10:
-        cur_state = State.turn
+        cur_state = State.TURN
 
 def WALL_FOLLOWING_UPDATE_ID_3():
     global left_angle
@@ -739,10 +739,10 @@ def WALL_FOLLOWING_UPDATE_ID_3():
     
     # State machine
     if cur_state == State.MOVE:
-        MOVE_WALL_FOLLOWING_ID_3()
-    elif cur_state == State.turn:
+        move_WALL_FOLLOWING_ID_3()
+    elif cur_state == State.TURN:
         turn_WALL_FOLLOWING_ID_3()
-    elif cur_state == State.stop:
+    elif cur_state == State.STOP:
         stop_WALL_FOLLOWING_ID_3()
     
     # Set the final speed and angle
@@ -1104,9 +1104,9 @@ def update_contour_Line():
                 color_indices = [current_color_index]
                 print(f"ONLY checking {['Red', 'Green', 'Blue'][current_color_index]} color")
             else:
-                # Still check all colors, but MOVE prioritized color to front of list
+                # Still check all colors, but move prioritized color to front of list
                 # and will give it a larger boost in the area calculation later
-                color_indices.reMOVE(current_color_index)
+                color_indices.remove(current_color_index)
                 color_indices.insert(0, current_color_index)
                 
         # Print what we're checking in update_contour

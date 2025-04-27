@@ -579,9 +579,17 @@ def update():
 
     # Ensure angle is within bounds
     angle = rc_utils.clamp(angle, -1.0, 1.0)
+    if speed < 0.5:
+        speed += 0.1
+    speed = rc_utils.clamp(speed, -1.0, 1.0)
 
+    speed = rc_utils.clamp(speed, 0.0, 1.0)
+    angle = rc_utils.clamp(angle, -1.0, 1.0)
     # Set the new speed and angle of the racecar
+    print("speed: ", speed)
+    print("angle: ", angle)
     rc.drive.set_speed_angle(speed, angle)
+
 
     # Display status information when holding down certain buttons
 
