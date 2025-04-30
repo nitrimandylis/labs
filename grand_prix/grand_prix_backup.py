@@ -799,31 +799,7 @@ def ID_2_Handler():
         elif previous_ID == 3:
             ID_3_Handler()
         else:
-        # Add wall avoidance while driving toward the marker
-            lidar_data = rc.lidar.get_samples()
-            if lidar_data is not None and len(lidar_data) > 0:
-                min_distance = np.min(lidar_data)
-                min_angle = np.argmin(lidar_data)
-                
-                # If obstacle detected, adjust steering to avoid it
-                if min_distance < 100 and abs(min_angle - 0) < 60:
-                    # Calculate avoidance angle (turn away from obstacle)
-                    avoidance_angle = 0.5 if min_angle < 180 else -0.5
-                    # Blend marker approach with obstacle avoidance
-                    if angle_to_marker > 0:
-                        final_angle = angle_to_marker - avoidance_angle
-                    elif angle_to_marker < 0 :
-                        final_angle = angle_to_marker + avoidance_angle
-
-                
-                    final_angle = rc_utils.clamp(final_angle, -1.0, 1.0)
-                    rc.drive.set_speed_angle(0.8, final_angle)
-                else:
-                    # No obstacle, continue toward marker
-                    rc.drive.set_speed_angle(1, angle_to_marker)
-            else:
-                # No valid lidar data, continue toward marker
-                rc.drive.set_speed_angle(1, angle_to_marker)
+            rc.drive.set_speed_angle(1, angle_to_marker)
             
         
         print("More than 10")
@@ -904,6 +880,8 @@ def update():
             rc.drive.set_speed_angle(0.5,angle_to_marker)
         elif COLOR == "ORANGE":
             rc.drive.set_speed_angle(1,angle_to_marker)
+        elif COLOR == "RED" and distance_to_marker < 70:
+            rc.drive.set_speed_angle(0.8,angle_to_marker)
         
     if ID not in [0,1,2,3,4,199]:
         ID = previous_ID
@@ -2176,7 +2154,7 @@ def update_Lane():
     
     speed_factor = 1.0 - abs(angle) * 1.5
     calculate_speed = speed * max(0.5, speed_factor)
-    rc.drive.set_max_speed(0.45)
+    rc.drive.set_max_speed(0.35)
     calculate_speed = 1
     
     print(f"Speed: {calculate_speed:.2f}, Angle: {angle:.2f}")
