@@ -683,7 +683,9 @@ def start():
     previous_colour = None
     COLOR = None
     angle_to_marker = 0
-    
+    WALL_START_ID_3()
+    start_Lane()
+    start_line()
     # Initialize slalom variables
     slalom_state = SlalomState.search
     slalom_color_priority = "RED"
@@ -838,8 +840,10 @@ def update():
     if ID == 3:
         ID_3_Handler()
         print("Wall")
+    if ID == 4:
+
         
-    if ID not in [0,1,2,3,199]:
+    if ID not in [0,1,2,3,4,199]:
         ID = previous_ID
 
     if ID == 199 and COLOR is None:
@@ -1004,9 +1008,9 @@ def WALL_FOLLOWING_UPDATE_ID_3():
 
         # Straighten gradually
         if angle > 0:
-            angle -= 0.2
+            angle -= 0.1
         elif angle < 0:
-            angle += 0.2
+            angle += 0.1
     elif left_distance > 70 and right_distance > 70 and front_distance < 100:
         speed = 0.8
         rc.drive.set_max_speed(0.28)
@@ -1058,7 +1062,9 @@ def WALL_START_ID_3():
 def update_slow():
     """Periodic updates for status information"""
     global ID, previous_ID, COLOR, previous_colour , angle_to_marker
-    
+
+    update_slow_Lane()
+    update_slow_line()
     # Print current status
     print_current_markers()
     angle_to_marker = 0
@@ -1857,8 +1863,10 @@ def update_contour_Lane():
 
     image = rc.camera.get_color_image()
     print("camera width :", rc.camera.get_width())
+    print("camera total height:", rc.camera.get_height())
     if image is not None:
-        crop_floor = ((360, 160), (rc.camera.get_height(), rc.camera.get_width()))
+        
+        crop_floor = ((400, 160), (rc.camera.get_height(), rc.camera.get_width()))
         image = rc_utils.crop(image, crop_floor[0], crop_floor[1])
         
         largestcontour = None
