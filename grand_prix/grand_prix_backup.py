@@ -696,8 +696,9 @@ def start():
     rc.set_update_slow_time(10)
 
 def ID_1_Handler():
-    global ID, previous_ID, COLOR, Lane_priority, previous_colour, angle_to_marker
+    global ID, previous_ID, COLOR, Lane_priority, previous_colour, angle_to_marker, angle
     
+
     # Save current marker data
     save_current_markers()
     distance_to_marker = calculate_marker_distance(contour_corners)
@@ -709,8 +710,32 @@ def ID_1_Handler():
     if ID == 1 and distance_to_marker > 32:
         # Only revert if we dhave a valid previous_ID
         print("Marker not close enough for lane following")
-        rc.drive.set_speed_angle(1, angle_to_marker)
+        
+        # Add wall avoidance while driving toward the marker
+        lidar_data = rc.lidar.get_samples()
+        if lidar_data is not None and len(lidar_data) > 0:
+            min_distance = np.min(lidar_data)
+            min_angle = np.argmin(lidar_data)
+            
+            # If obstacle detected, adjust steering to avoid it
+            if min_distance < 100 and abs(min_angle - 0) < 60:
+                # Calculate avoidance angle (turn away from obstacle)
+                avoidance_angle = 0.5 if min_angle < 180 else -0.5
+                # Blend marker approach with obstacle avoidance
+                if angle_to_marker > 0:
+                    final_angle = angle_to_marker - avoidance_angle
+                elif angle_to_marker < 0 :
+                    final_angle = angle_to_marker + avoidance_angle
 
+            
+                final_angle = rc_utils.clamp(final_angle, -1.0, 1.0)
+                rc.drive.set_speed_angle(0.8, final_angle)
+            else:
+                # No obstacle, continue toward marker
+                rc.drive.set_speed_angle(1, angle_to_marker)
+        else:
+            # No valid lidar data, continue toward marker
+            rc.drive.set_speed_angle(1, angle_to_marker)
         
         # if previous_ID == -1 or previous_ID == None:
         #     previous_ID = 1
@@ -763,12 +788,44 @@ def ID_3_Handler():
         previous_ID = 3
 
 def ID_2_Handler():
-    global previous_ID , distance_to_marker , angle_to_marker , estimated_distance , estimated_angle , estimated_marker_id
+    global previous_ID , distance_to_marker , angle_to_marker 
     
     print("PREVIOUSE id WHEN id 2 :    ", previous_ID)
     print("distance to marker when ID2 :", distance_to_marker)
     if distance_to_marker > 30 and distance_to_marker != 10000:
-        ID_1_Handler()
+        print("Marker not close enough for cone slalom")
+        if previous_ID == 1:
+            ID_1_Handler()
+        elif previous_ID == 3:
+            ID_3_Handler()
+        else:
+        # Add wall avoidance while driving toward the marker
+            lidar_data = rc.lidar.get_samples()
+            if lidar_data is not None and len(lidar_data) > 0:
+                min_distance = np.min(lidar_data)
+                min_angle = np.argmin(lidar_data)
+                
+                # If obstacle detected, adjust steering to avoid it
+                if min_distance < 100 and abs(min_angle - 0) < 60:
+                    # Calculate avoidance angle (turn away from obstacle)
+                    avoidance_angle = 0.5 if min_angle < 180 else -0.5
+                    # Blend marker approach with obstacle avoidance
+                    if angle_to_marker > 0:
+                        final_angle = angle_to_marker - avoidance_angle
+                    elif angle_to_marker < 0 :
+                        final_angle = angle_to_marker + avoidance_angle
+
+                
+                    final_angle = rc_utils.clamp(final_angle, -1.0, 1.0)
+                    rc.drive.set_speed_angle(0.8, final_angle)
+                else:
+                    # No obstacle, continue toward marker
+                    rc.drive.set_speed_angle(1, angle_to_marker)
+            else:
+                # No valid lidar data, continue toward marker
+                rc.drive.set_speed_angle(1, angle_to_marker)
+            
+        
         print("More than 10")
     if distance_to_marker <= 30 and ID == 2 or distance_to_marker == None and ID == 2 or distance_to_marker == 10000 :
         previous_ID = 2
@@ -841,7 +898,12 @@ def update():
         ID_3_Handler()
         print("Wall")
     if ID == 4:
-
+        if COLOR == "RED" or distance_to_marker < 35:
+            rc.drive.set_speed_angle(0, angle_to_marker)
+        elif COLOR == "BLUE":
+            rc.drive.set_speed_angle(0.5,angle_to_marker)
+        elif COLOR == "ORANGE":
+            rc.drive.set_speed_angle(1,angle_to_marker)
         
     if ID not in [0,1,2,3,4,199]:
         ID = previous_ID
@@ -933,7 +995,10 @@ def turn_WALL_FOLLOWING_ID_3():
         # Turn right - simplify angle calculation
         angle = rc_utils.remap_range(error, -15, 15, -1, 1)
         
-
+    if angle > 0 :
+        angle += 0.1
+    elif angle < 0 :
+        angle -= 0.1
     angle = rc_utils.clamp(angle, -1.0, 1.0)
     
     # Set appropriate speed for turning
@@ -2104,14 +2169,14 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.5
+        angle += 0.4
     elif angle < 0:
         angle -= 0.5
     angle = rc_utils.clamp(angle, -1, 1)
     
     speed_factor = 1.0 - abs(angle) * 1.5
     calculate_speed = speed * max(0.5, speed_factor)
-    rc.drive.set_max_speed(0.4)
+    rc.drive.set_max_speed(0.45)
     calculate_speed = 1
     
     print(f"Speed: {calculate_speed:.2f}, Angle: {angle:.2f}")
