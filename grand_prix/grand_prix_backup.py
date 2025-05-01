@@ -1382,6 +1382,7 @@ def lab_Line_compressed():
     current_time = rc.get_delta_time()
     delta_time = current_time - last_update_time
     last_update_time = current_time
+    rc.drive.set_max_speed(1)
 
     # Update the contour information
     update_contour_Line()
@@ -1488,7 +1489,7 @@ def lab_Line_compressed():
     print("angle: ", angle)
 
 
-    rc.drive.set_speed_angle(speed, angle)
+    rc.drive.set_speed_angle(1, angle)
 
 
     # Display status information when holding down certain buttons
@@ -2126,9 +2127,9 @@ def update_Lane():
     if front_distance < 100:
         # Turn away from the closest side wall, or choose left by default if equal
         if left_distance < right_distance:
-            wall_avoidance_angle = 0.8  # Turn right
+            wall_avoidance_angle = 0.6  # Turn right
         else:
-            wall_avoidance_angle = -0.8  # Turn left
+            wall_avoidance_angle = -0.6  # Turn left
         
         # Slow down when approaching a wall
         speed = rc_utils.remap_range(front_distance, 30, 100, 0.5, 1.0)
@@ -2147,7 +2148,7 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.4
+        angle += 0.2
     elif angle < 0:
         angle -= 0.5
     angle = rc_utils.clamp(angle, -1, 1)
@@ -2332,7 +2333,7 @@ def ID_2_Updtae():
     if angle > 0:
         angle += 0.5
     elif angle < 0:
-        angle -= 0.6
+        angle -= 0.5
     
     # Ensure values are within limits
     angle = rc_utils.clamp(angle, -1, 0.8)
@@ -2347,9 +2348,3 @@ def ID_2_Updtae():
 if __name__ == "__main__":
     rc.set_start_update(start, update, update_slow)
     rc.go() 
-
-
-
-
-
-                                

@@ -739,17 +739,16 @@ def ID_2_Handler():
         Timer2 += rc.get_delta_time()
         previous_ID = 2
           #12.7
-
-        if Timer2 > 13:
+        if 12 < Timer2 < 11:
             angle = ID_2_Updtae()
-            angle += 1
+            angle += 0.3
             angle = rc_utils.clamp(angle, -1.0, 1.0)
-            if angle != 1:
-            rc.drive.set_speed_angle(1,1)
-            else:
-                rc.drive.set_speed_angle(1,angle)
-        # # elif is_parallel:
-        # #     ID_3_Handler
+            rc.drive.set_speed_angle(1, angle)
+        elif 13 < Timer2 < 12:
+            rc.drive.set_speed_angle(1, 1)
+        elif Timer2 > 13:
+            ID_3_Handler()
+
         else:
             ID_2_Updtae()
 
@@ -835,6 +834,7 @@ def update():
 
     if ID == 199 and COLOR is None:
         print("Precious ID at ID 199 is:", previous_ID)
+        print("Distance to marker at ID 199 is:", distance_to_marker)
 
         rc.drive.set_speed_angle(1, angle_to_marker)
         if distance_to_marker < 20 and previous_ID == 1 or distance_to_marker <= 0 and previous_ID == 1:
@@ -855,7 +855,7 @@ def update():
                 ID = previous_ID
                     
 
-        if distance_to_marker < 32 and ID != 1:
+        if distance_to_marker < 40 and ID != 1:
             print("Other ID 199 reaction")
             angle = -1  # Full left turn
             
@@ -869,11 +869,11 @@ def update():
 
             rc.drive.set_speed_angle(1, angle)
             
-            if previous_ID == 3 and counter > 0.2:
-                ID_3_Handler()
+            if previous_ID == 3 and counter > 0.1:
                 previous_ID = 3
+                ID_3_Handler()
                 ID = previous_ID
-                
+            
             if previous_ID == 2 and counter > 0.2:
                 ID_2_Handler()
                 previous_ID = 2
@@ -1046,11 +1046,11 @@ def WALL_FOLLOWING_UPDATE_ID_3():
         elif angle_to_yellow < 0:
             angle -= 0.2
             
-    if Timer3 < 5:
-        if angle > 0:
-            angle += 0.5
-        elif angle < 0:
-            angle -= 0.5
+    # if 1.5 < Timer3 < 7:
+    #     if angle > 0:
+    #         angle += 0.6
+    #     elif angle < 0:
+    #         angle -= 0.6
     angle = rc_utils.clamp(angle, -1.0, 1.0)
     rc.drive.set_speed_angle(speed, angle)
 
@@ -1622,47 +1622,47 @@ def update_Lane():
     # Follow lanes first
     follow_two_lines_Lane()
     
-    # Wall avoidance logic
-    wall_avoidance_angle = 0
+    # # Wall avoidance logic
+    # wall_avoidance_angle = 0
     
-    # If wall is too close on the left, turn right
-    if left_distance < 60:
-        wall_avoidance_angle = rc_utils.remap_range(left_distance, 20, 60, 0.7, 0.2)
-        print(f"Wall on left: {left_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
+    # # If wall is too close on the left, turn right
+    # if left_distance < 60:
+    #     wall_avoidance_angle = rc_utils.remap_range(left_distance, 20, 60, 0.7, 0.2)
+    #     print(f"Wall on left: {left_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
     
-    # If wall is too close on the right, turn left
-    elif right_distance < 60:
-        wall_avoidance_angle = rc_utils.remap_range(right_distance, 20, 60, -0.7, -0.2)
-        print(f"Wall on right: {right_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
+    # # If wall is too close on the right, turn left
+    # elif right_distance < 60:
+    #     wall_avoidance_angle = rc_utils.remap_range(right_distance, 20, 60, -0.7, -0.2)
+    #     print(f"Wall on right: {right_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
     
-    # If wall is directly in front, make a stronger turn
-    if front_distance < 100:
-        # Turn away from the closest side wall, or choose left by default if equal
-        if left_distance < right_distance:
-            wall_avoidance_angle = 0.8  # Turn right
-        else:
-            wall_avoidance_angle = -0.8  # Turn left
+    # # If wall is directly in front, make a stronger turn
+    # if front_distance < 100:
+    #     # Turn away from the closest side wall, or choose left by default if equal
+    #     if left_distance < right_distance:
+    #         wall_avoidance_angle = 0.8  # Turn right
+    #     else:
+    #         wall_avoidance_angle = -0.8  # Turn left
         
-        # Slow down when approaching a wall
-        speed = rc_utils.remap_range(front_distance, 30, 100, 0.5, 1.0)
-        print(f"Wall ahead: {front_distance:.1f}cm, strong avoid: {wall_avoidance_angle:.2f}")
+    #     # Slow down when approaching a wall
+    #     speed = rc_utils.remap_range(front_distance, 30, 100, 0.5, 1.0)
+    #     print(f"Wall ahead: {front_distance:.1f}cm, strong avoid: {wall_avoidance_angle:.2f}")
     
-    # Combine lane following angle with wall avoidance
-    # Lane following gets priority, but wall avoidance can override if needed
-    if abs(wall_avoidance_angle) > 0.1:
-        # Blend the angles, with more weight to wall avoidance when walls are very close
-        blend_factor = rc_utils.remap_range(min(left_distance, right_distance, front_distance), 
-                                          20, 60, 0.8, 0.3)
-        blend_factor = rc_utils.clamp(blend_factor, 0, 0.8)
+    # # Combine lane following angle with wall avoidance
+    # # Lane following gets priority, but wall avoidance can override if needed
+    # if abs(wall_avoidance_angle) > 0.1:
+    #     # Blend the angles, with more weight to wall avoidance when walls are very close
+    #     blend_factor = rc_utils.remap_range(min(left_distance, right_distance, front_distance), 
+    #                                       20, 60, 0.8, 0.3)
+    #     blend_factor = rc_utils.clamp(blend_factor, 0, 0.8)
         
-        # Apply blending
-        angle = angle * (1 - blend_factor) + wall_avoidance_angle * blend_factor
+    #     # Apply blending
+    #     angle = angle * (1 - blend_factor) + wall_avoidance_angle * blend_factor
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.5
+        angle += 0.3
     elif angle < 0:
-        angle -= 0.6
+        angle -= 0.7
     angle = rc_utils.clamp(angle, -1, 1)
     
     speed_factor = 1.0 - abs(angle) * 1.5
@@ -2898,9 +2898,9 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.4
+        angle += 0.6
     elif angle < 0:
-        angle -= 0.4
+        angle -= 0.7
     angle = rc_utils.clamp(angle, -1, 1)
     
     speed_factor = 1.0 - abs(angle) * 1.5
