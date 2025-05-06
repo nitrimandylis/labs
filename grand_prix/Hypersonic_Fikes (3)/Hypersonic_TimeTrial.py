@@ -97,6 +97,10 @@ temp_counter = 0
 accumulatedError = 0
 lastError = 0
 prev_angle = 0  # Store previous angle for smoothing
+FRONT_WINDOW = (-10,10)
+LEFT_WINDOW = (-50, -40) # center : -45
+RIGHT_WINDOW = (40, 50) # center : 45
+DRIVE_SPEED = 1.0
 
 # Marker related variables
 ID = 0
@@ -598,24 +602,12 @@ def start_line():
     rc.set_update_slow_time(0.5)
 
 def WALL_START_ID_3():
+    """Initialize the wall following behavior with simple proportional control"""
+    global counter_1
+    counter_1 = 0
     rc.drive.stop()
-    global cur_state
-    global speed
-    global angle
-    global front_distance
-    global random_number
-    global temp_distandce_front
-    global temp_counter
-    
-    temp_distandce_front  = 0
-    temp_counter = 0
-
-    # Initialize front_distance to a large value
-    front_distance = 10000000
-    
-    # Print start message
-    print(">> Lab 4B - LIDAR Wall Following")
-    rc.drive.set_max_speed(0.28)
+    rc.drive.set_max_speed()
+      # Start with conservative speed like in smtggg.py
 
 ########################################################################################
 # Handler Functions
@@ -739,17 +731,17 @@ def ID_2_Handler():
         Timer2 += rc.get_delta_time()
         previous_ID = 2
           #12.7
-        if 12 < Timer2 < 11:
+        if 13.7 < Timer2 < 12.7:
             angle = ID_2_Updtae()
-            angle += 0.3
+            angle += 0.1
             angle = rc_utils.clamp(angle, -1.0, 1.0)
             rc.drive.set_speed_angle(1, angle)
-        elif 13 < Timer2 < 12:
-            rc.drive.set_speed_angle(1, 1)
-        elif Timer2 > 13:
+        elif 14.54 < Timer2 < 13.7:
+            rc.drive.set_speed_angle(0.8, 1)
+        elif Timer2 > 14.54:
             ID_3_Handler()
 
-        else:
+        elif Timer2 < 12.7:
             ID_2_Updtae()
 
 ########################################################################################
@@ -803,6 +795,8 @@ def update():
             print(f"ID: {ID}, COLOR: {COLOR}, Distance: {distance_to_marker:.1f}cm")
 
     # Process marker logic - use optimized conditional structure
+    if ID not in [0,1,2,3,199]:
+        ID = previous_ID
     if ID == 199 and COLOR is not None or ID == 0 and COLOR is not None:
         Line_Handles_Color_ID()
         print("lines")
@@ -825,13 +819,13 @@ def update():
         elif COLOR == "RED" and distance_to_marker < 70:
             rc.drive.set_speed_angle(0.8,angle_to_marker)
         
-    if ID not in [0,1,2,3,4,199]:
-        ID = previous_ID
+    
     if ID == 31 :
         ID = previous_ID
     if ID == 157:
         ID = previous_ID
-
+    if ID == 35:
+        ID = previous_ID
     if ID == 199 and COLOR is None:
         print("Precious ID at ID 199 is:", previous_ID)
         print("Distance to marker at ID 199 is:", distance_to_marker)
@@ -902,122 +896,19 @@ def update_slow():
 # Wall Following Functions
 ########################################################################################
             
-def stop_WALL_FOLLOWING_ID_3():
-    """Stop the car when needed"""
-    global speed
-    global angle
-    global cur_state
-    global front_distance
+# Note: Wall following now uses a simple proportional controller approach from smtggg.py
+# The controller keeps the car centered between walls by comparing left and right distances
 
-    speed = 0
-    angle = 0
-    
-    # If the path is clear again, start moving
-    if front_distance > 40:
-        cur_state = State.move
-
-def turn_WALL_FOLLOWING_ID_3():
-    """
-    Turn the car to maintain position at the midpoint between walls
-    """
-    global left_angle
-    global left_distance
-    global right_angle
-    global right_distance
-    global front_distance
-    global angle
-    global cur_state
-    global speed
-
-    # Calculate total corridor width and ideal position (midpoint)
-    total_corridor_width = left_distance + right_distance
-    ideal_position = total_corridor_width / 2  # This is where we want to be
-    current_position = right_distance  # Our current position relative to left wall
-    
-    # Calculate offset from center (negative = too far left, positive = too far right)
-    center_offset = current_position - ideal_position
-    
-    # Calculate steering angle based on center offset - with deadband
-    if abs(center_offset) < 10:  # 10cm deadband
-        # Within deadband - maintain current direction with minimal correction
-        angle = 0
-    else:
-        # Map offset to steering angle with moderate gain
-        # Negative offset (too far left) = positive angle (turn right)
-        # Positive offset (too far right) = negative angle (turn left)
-        angle = rc_utils.remap_range(center_offset, -50, 50, 0.4, -0.4)
-    
-    # Add slight boost for sharper corners if needed
-    if abs(center_offset) > 30:
-        if angle > 0:
-            angle += 0.1
-        elif angle < 0:
-            angle -= 0.1
-            
-    angle = rc_utils.clamp(angle, -1.0, 1.0)
-    
-    # Set appropriate speed for turning
-    rc.drive.set_max_speed(0.3)
-
-    # Override with stronger turn if obstacle directly ahead
-    if front_distance < 30:
-        # Turn toward the side with more space
-        if left_distance > right_distance:
-            angle = -0.8  # Turn left
-        else:
-            angle = 0.8  # Turn right
-
-    # Exit turn state if we're well-centered between walls
-    if abs(center_offset) < 8:
-        cur_state = State.move
-    
-    speed = 0.8  # Slightly reduced speed during turns for stability
-
-def move_WALL_FOLLOWING_ID_3():
-    """
-    Move forward while maintaining center position between walls
-    """
-    global speed
-    global angle
-    global left_distance
-    global right_distance
-    global front_distance
-    global cur_state
-
-    # Calculate total corridor width and ideal position (midpoint)
-    total_corridor_width = left_distance + right_distance
-    ideal_position = total_corridor_width / 2
-    current_position = right_distance
-    
-    # Calculate offset from center
-    center_offset = current_position - ideal_position
-    
-    # Apply a small correction while moving to stay centered
-    if abs(center_offset) < 10:  # Small deadband
-        angle = 0
-    else:
-        # Very gentle correction during move state
-        angle = rc_utils.remap_range(center_offset, -50, 50, 0.15, -0.15)
-    
-    # Adjust speed based on corridor width and front distance
-    if total_corridor_width > 140 and front_distance > 150:
-        # Wide corridor, clear ahead - go faster
-        speed = 1.0
-    elif front_distance < 80:
-        # Obstacle ahead - go slower
-        speed = 0.6
-    else:
-        # Normal corridor
-        speed = 0.8
-    
-    # Check if we need to turn based on larger center offset
-    if abs(center_offset) > 20:
-        cur_state = State.turn
+def WALL_START_ID_3():
+    """Initialize the wall following behavior with simple proportional control"""
+    global counter_1
+    counter_1 = 0
+    rc.drive.stop()
+    rc.drive.set_max_speed()
+    # Start with conservative speed like in smtggg.py
 
 def WALL_FOLLOWING_UPDATE_ID_3():
-    """
-    Main wall following update function using midpoint approach
-    """
+    """Updates the wall following behavior with simple proportional control from smtggg.py"""
     global counter_1
     counter_1 += rc.get_delta_time()
     # Follow the wall to the right of the car without hitting anything.
@@ -1040,34 +931,13 @@ def WALL_FOLLOWING_UPDATE_ID_3():
     # https://www.desmos.com/calculator/24qctllaj1
     
     print("Error: " + str(error))
-
+    rc.drive.set_max_speed()
     rc.drive.set_speed_angle(speed, angle)
     if 5.5 > counter_1 > 5:
         rc.drive.set_speed_angle(1, 1)
     if 9 > counter_1 > 8.5:
         rc.drive.set_speed_angle(1, 1)
 
-def WALL_START_ID_3():
-    """Initialize the wall following behavior"""
-    rc.drive.stop()
-    global cur_state
-    global speed
-    global angle
-    global front_distance
-    global temp_distandce_front
-    global temp_counter
-    global Timer3
-    
-    Timer3 = 0
-    temp_distandce_front = 0
-    temp_counter = 0
-    
-    # Initialize front_distance to a large value
-    front_distance = 10000000
-    
-    # Print start message
-    print(">> Starting Wall Following - Midpoint Approach")
-    rc.drive.set_max_speed(0.3)  # Start with a conservative speed limit
 
 ########################################################################################
 # Line Tracking Functions
@@ -1771,7 +1641,7 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.6
+        angle += 0.7
     elif angle < 0:
         angle -= 0.7
     angle = rc_utils.clamp(angle, -1, 1)
@@ -2950,7 +2820,7 @@ def enter_recovery_mode_Lane(delta_time):
 
 def update_Lane():
     global prioritylist, angle, speed, Lane_priority
-    #12.7
+    
     # Set priority based on Lane_priority value
     if Lane_priority == 1:
         prioritylist = [ORANGE]
@@ -2988,16 +2858,16 @@ def update_Lane():
     # if front_distance < 100:
     #     # Turn away from the closest side wall, or choose left by default if equal
     #     if left_distance < right_distance:
-    #         wall_avoidance_angle = 0.3  # Turn right
+    #         wall_avoidance_angle = 0.8  # Turn right
     #     else:
-    #         wall_avoidance_angle = -0.3  # Turn left
+    #         wall_avoidance_angle = -0.8  # Turn left
         
     #     # Slow down when approaching a wall
     #     speed = rc_utils.remap_range(front_distance, 30, 100, 0.5, 1.0)
     #     print(f"Wall ahead: {front_distance:.1f}cm, strong avoid: {wall_avoidance_angle:.2f}")
     
-    # Combine lane following angle with wall avoidance
-    # Lane following gets priority, but wall avoidance can override if needed
+    # # Combine lane following angle with wall avoidance
+    # # Lane following gets priority, but wall avoidance can override if needed
     # if abs(wall_avoidance_angle) > 0.1:
     #     # Blend the angles, with more weight to wall avoidance when walls are very close
     #     blend_factor = rc_utils.remap_range(min(left_distance, right_distance, front_distance), 
