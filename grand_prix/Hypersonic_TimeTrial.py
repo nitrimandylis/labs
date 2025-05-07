@@ -515,9 +515,13 @@ def save_current_markers():
 def start():
     """Initialize the marker detector"""
     global current_time, counter, Slow_oreint, previous_ID, ID, previous_colour, COLOR, angle_to_marker
-    global slalom_state, slalom_color_priority, slalom_last_distance, slalom_counter, Timer2 , Measuring , DISTANCETRAVELLED
+    global slalom_state, slalom_color_priority, slalom_last_distance, slalom_counter, Timer2 , Measuring , DISTANCETRAVELLED , RNG
+    
+    RNG = random.randint(1 ,2)
+    print("RNG is :", RNG)
     
     print_info()
+    
     
     # Initialize current_time
     Measuring = False
@@ -714,8 +718,9 @@ def ID_3_Handler():
         previous_ID = 3
 
 def ID_2_Handler():
-    global previous_ID, distance_to_marker, angle_to_marker, Timer2 , Measuring , DISTANCETRAVELLED
-    
+    global previous_ID, distance_to_marker, angle_to_marker, Timer2 , Measuring , DISTANCETRAVELLED , RNG
+
+    # Bad is 2
     # Update Timer2
     #1576.3532
     #1496.047
@@ -743,13 +748,18 @@ def ID_2_Handler():
     if distance_to_marker <= 30 and ID == 2 or distance_to_marker == None and ID == 2 or distance_to_marker == 10000 :
         Timer2 += rc.get_delta_time()
         previous_ID = 2
-          #12.7
-        if DISTANCETRAVELLED > 1525.052:
-            rc.drive.set_speed_angle(1, 0.8)
-        elif DISTANCETRAVELLED > 1530.052:
+        if DISTANCETRAVELLED >= 1570.052:
             ID_3_Handler()
-        else:
+            print("Forced wall following")
+          #12.7
+        elif DISTANCETRAVELLED >= 1540.052000000000000000000000000000:
+            rc.drive.set_speed_angle(1, 1)
+            print("Forced right turn")
+        elif DISTANCETRAVELLED <= 1535.052000000000000000000000000000:
             ID_2_Updtae()
+        else:
+            rc.drive.set_speed_angle(0, 0)
+        
 
 ########################################################################################
 # Main Update Functions
@@ -764,6 +774,8 @@ def update():
     print("previous COLOUR IS :", previous_colour)
     print("counter is:", counter)
     # Update current time
+    print("RNG is :", RNG)
+    # RNG is  2 when wprks
     current_time += rc.get_delta_time()
     save_current_markers()
     
@@ -808,6 +820,7 @@ def update():
     # Process marker logic - use optimized conditional structure
     if ID not in [0,1,2,3,199]:
         ID = previous_ID if previous_ID in [0,1,2,3,199] else 2
+        print("invalid ID")
     if ID == 199 and COLOR is not None or ID == 0 and COLOR is not None:
         Line_Handles_Color_ID()
         print("lines")
@@ -923,10 +936,10 @@ def WALL_START_ID_3():
 
 def WALL_FOLLOWING_UPDATE_ID_3():
     """Updates the wall following behavior with simple proportional control from smtggg.py"""
-    global counter_1 , DISTANCETRAVELLED , Measuring
+    global counter_1 , DISTANCETRAVELLED , Measuring 
     counter_1 += rc.get_delta_time()
-
-    if counter_1 < 0.2:
+    
+    if counter_1 < 0.4:
         measure_distance_traveled()
         Measuring = False
         DISTANCETRAVELLED = 0
@@ -956,12 +969,17 @@ def WALL_FOLLOWING_UPDATE_ID_3():
     
     print("Error: " + str(error))
     rc.drive.set_max_speed()
-    rc.drive.set_speed_angle(speed, angle)
+    
+    if 360 >= DISTANCETRAVELLED >= 340:
+        rc.drive.set_speed_angle(1, 0.8)
+    else:
+        rc.drive.set_speed_angle(speed, angle)
     if counter_1 < 3:
         if angle > 0:
             angle += 0.1
         elif angle < 0:
             angle -= 0.1
+    
     # if 5.5 > counter_1 > 5:
     #     rc.drive.set_speed_angle(1, 1)
     # if 9 > counter_1 > 8.5:
