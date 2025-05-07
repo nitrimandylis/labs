@@ -144,6 +144,11 @@ generalcontour_center = None
 is_parallel = False
 distance_difference = 0
 
+# Tracking and measuring variables
+Measuring = False  # Flag to start/stop distance measurement
+distance_traveled = 0.0  # Total distance traveled since Measuring was set to True
+last_measure_time = 0.0  # Time of last measurement update
+
 ########################################################################################
 # Classes and Enums
 ########################################################################################
@@ -510,11 +515,13 @@ def save_current_markers():
 def start():
     """Initialize the marker detector"""
     global current_time, counter, Slow_oreint, previous_ID, ID, previous_colour, COLOR, angle_to_marker
-    global slalom_state, slalom_color_priority, slalom_last_distance, slalom_counter, Timer2
+    global slalom_state, slalom_color_priority, slalom_last_distance, slalom_counter, Timer2 , Measuring , DISTANCETRAVELLED
     
     print_info()
     
     # Initialize current_time
+    Measuring = False
+    DISTANCETRAVELLED = 0
     current_time = 0
     counter = 0
     Slow_oreint = "NONE"
@@ -701,22 +708,28 @@ def Line_Handles_Color_ID():
         rc.drive.set_speed_angle(speed, angle)
 
 def ID_3_Handler():
-    global previous_ID ,distance_to_marker , angle_to_marker
+    global previous_ID ,distance_to_marker , angle_to_marker , DISTANCETRAVELLED
     if ID == 3:
         WALL_FOLLOWING_UPDATE_ID_3()
         previous_ID = 3
 
 def ID_2_Handler():
-    global previous_ID, distance_to_marker, angle_to_marker, Timer2 
+    global previous_ID, distance_to_marker, angle_to_marker, Timer2 , Measuring , DISTANCETRAVELLED
     
     # Update Timer2
-    
-    
+    #1576.3532
+    #1496.047
+    # 1497.052
     print("PREVIOUSE id WHEN id 2 :    ", previous_ID)
     print("distance to marker when ID2 :", distance_to_marker)
     print("Timer2 value is:", Timer2)
     print("detectparllalel walls resutl" ,  distance_difference)
     detect_parallel_walls()
+    measure_distance_traveled()
+    Measuring = True
+    DISTANCETRAVELLED = measure_distance_traveled()
+    print("DISTANCE-TRAVELLED IS :", DISTANCETRAVELLED)
+    print("distance to marker" , distance_to_marker)
     if distance_to_marker > 30 and distance_to_marker != 10000:
         print("Marker not close enough for cone slalom")
         if previous_ID == 1:
@@ -731,17 +744,11 @@ def ID_2_Handler():
         Timer2 += rc.get_delta_time()
         previous_ID = 2
           #12.7
-        if 13.7 < Timer2 < 12.7:
-            angle = ID_2_Updtae()
-            angle += 0.1
-            angle = rc_utils.clamp(angle, -1.0, 1.0)
-            rc.drive.set_speed_angle(1, angle)
-        elif 14.54 < Timer2 < 13.7:
-            rc.drive.set_speed_angle(0.8, 1)
-        elif Timer2 > 14.54:
+        if DISTANCETRAVELLED > 1525.052:
+            rc.drive.set_speed_angle(1, 0.8)
+        elif DISTANCETRAVELLED > 1530.052:
             ID_3_Handler()
-
-        elif Timer2 < 12.7:
+        else:
             ID_2_Updtae()
 
 ########################################################################################
@@ -759,6 +766,10 @@ def update():
     # Update current time
     current_time += rc.get_delta_time()
     save_current_markers()
+    
+    # Update distance measurement
+    measure_distance_traveled()  # Call the function here for better placement
+    
     # Process markers only once per frame to avoid redundant processing
     current_image = rc.camera.get_color_image()
     if current_image is not None:
@@ -796,7 +807,7 @@ def update():
 
     # Process marker logic - use optimized conditional structure
     if ID not in [0,1,2,3,199]:
-        ID = previous_ID
+        ID = previous_ID if previous_ID in [0,1,2,3,199] else 2
     if ID == 199 and COLOR is not None or ID == 0 and COLOR is not None:
         Line_Handles_Color_ID()
         print("lines")
@@ -901,17 +912,31 @@ def update_slow():
 
 def WALL_START_ID_3():
     """Initialize the wall following behavior with simple proportional control"""
-    global counter_1
+    global counter_1 , DISTANCETRAVELLED , Measuring
     counter_1 = 0
+    measure_distance_traveled()
+    Measuring = False
+    DISTANCETRAVELLED = 0
     rc.drive.stop()
     rc.drive.set_max_speed()
     # Start with conservative speed like in smtggg.py
 
 def WALL_FOLLOWING_UPDATE_ID_3():
     """Updates the wall following behavior with simple proportional control from smtggg.py"""
-    global counter_1
+    global counter_1 , DISTANCETRAVELLED , Measuring
     counter_1 += rc.get_delta_time()
+
+    if counter_1 < 0.2:
+        measure_distance_traveled()
+        Measuring = False
+        DISTANCETRAVELLED = 0
     # Follow the wall to the right of the car without hitting anything.
+
+
+    measure_distance_traveled()
+    Measuring = True
+    DISTANCETRAVELLED = measure_distance_traveled()
+    print("DISTANCE-TRAVELLED IS :", DISTANCETRAVELLED)
     scan = rc.lidar.get_samples()
     left_angle, left_dist = rc_utils.get_lidar_closest_point(scan, LEFT_WINDOW)
     right_angle, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
@@ -927,16 +952,20 @@ def WALL_FOLLOWING_UPDATE_ID_3():
 
 
     print("the current runtime is " + str(counter_1))
-    # speed = rc_utils.clamp(math.cos(0.5 * math.pi * angle) * DRIVE_SPEED  + MIN_SPEED, -1, 1) # smoothened version of -abs(angle) + 1
-    # https://www.desmos.com/calculator/24qctllaj1
+
     
     print("Error: " + str(error))
     rc.drive.set_max_speed()
     rc.drive.set_speed_angle(speed, angle)
-    if 5.5 > counter_1 > 5:
-        rc.drive.set_speed_angle(1, 1)
-    if 9 > counter_1 > 8.5:
-        rc.drive.set_speed_angle(1, 1)
+    if counter_1 < 3:
+        if angle > 0:
+            angle += 0.1
+        elif angle < 0:
+            angle -= 0.1
+    # if 5.5 > counter_1 > 5:
+    #     rc.drive.set_speed_angle(1, 1)
+    # if 9 > counter_1 > 8.5:
+    #     rc.drive.set_speed_angle(1, 1)
 
 
 ########################################################################################
@@ -1641,7 +1670,7 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.7
+        angle += 0.6  # Restore to original value of 0.6
     elif angle < 0:
         angle -= 0.7
     angle = rc_utils.clamp(angle, -1, 1)
@@ -2879,7 +2908,7 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.6
+        angle += 0.6  # Restore to original value of 0.6
     elif angle < 0:
         angle -= 0.7
     angle = rc_utils.clamp(angle, -1, 1)
@@ -3129,6 +3158,46 @@ def detect_parallel_walls(distance_threshold=0, angle_range=30):
 ########################################################################################
 # Main Entry Point
 ########################################################################################
+
+def measure_distance_traveled():
+    """
+    Measures the total distance traveled by the car since the Measuring flag was set to True.
+    Uses speed and time to calculate incremental distance.
+    
+    Returns:
+        float: Total distance traveled in cm
+    """
+    global Measuring, distance_traveled, last_measure_time, speed
+    
+    current_time = time.time()
+    
+    # Only measure when the Measuring flag is True
+    if Measuring:
+        # First time measurement
+        if last_measure_time == 0.0:
+            last_measure_time = current_time
+            return distance_traveled
+        
+        # Calculate time elapsed since last measurement
+        delta_time = current_time - last_measure_time
+        
+        # Calculate distance traveled in this interval (speed * time)
+        # Convert speed (0-1 scale) to approximate cm/s (assuming max speed ~100cm/s)
+        # Adjust the 100 multiplier based on your car's actual max speed
+        distance_increment = abs(speed) * delta_time * 100
+        
+        # Add to the total
+        distance_traveled += distance_increment
+        
+        # Update last measure time
+        last_measure_time = current_time
+    else:
+        # Reset if Measuring is turned off
+        if distance_traveled > 0 or last_measure_time > 0:
+            distance_traveled = 0.0
+            last_measure_time = 0.0
+    
+    return distance_traveled
 
 if __name__ == "__main__":
     rc.set_start_update(start, update, update_slow)
