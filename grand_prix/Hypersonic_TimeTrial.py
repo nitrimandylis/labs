@@ -925,8 +925,9 @@ def update_slow():
 
 def WALL_START_ID_3():
     """Initialize the wall following behavior with simple proportional control"""
-    global counter_1 , DISTANCETRAVELLED , Measuring
+    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf
     counter_1 = 0
+    tolerance_4_smtng_find_it_out_yslf = 23
     measure_distance_traveled()
     Measuring = False
     DISTANCETRAVELLED = 0
@@ -943,42 +944,62 @@ def WALL_FOLLOWING_UPDATE_ID_3():
         measure_distance_traveled()
         Measuring = False
         DISTANCETRAVELLED = 0
-    # Follow the wall to the right of the car without hitting anything.
-
-
+    
     measure_distance_traveled()
     Measuring = True
     DISTANCETRAVELLED = measure_distance_traveled()
-    print("DISTANCE-TRAVELLED IS :", DISTANCETRAVELLED)
     scan = rc.lidar.get_samples()
     left_angle, left_dist = rc_utils.get_lidar_closest_point(scan, LEFT_WINDOW)
     right_angle, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
+    front_angle, front_dist = rc_utils.get_lidar_closest_point(scan, FRONT_WINDOW)
 
-    rc.display.show_lidar(scan, 128, 1000, [(left_angle, left_dist), (right_angle, right_dist)])
+    rc.display.show_lidar(scan, 128, 1000, [(left_angle, left_dist), (right_angle, right_dist), (front_angle, front_dist)])
+
+    print("left_dist", left_dist)
+    print("right_dist", right_dist)
+    print("front_dist", front_dist)
 
     error = right_dist - left_dist  
     maxError = 12
     kP = 0.5
 
-    angle = rc_utils.clamp(kP * error / maxError, -1, 1)
-    speed = DRIVE_SPEED
+    angle_pid = rc_utils.clamp(kP * error / maxError, -1, 1)
+    current_speed = DRIVE_SPEED # Global DRIVE_SPEED
 
-
-    print("the current runtime is " + str(counter_1))
-
-    
-    print("Error: " + str(error))
-    rc.drive.set_max_speed()
-    
-    if 360 >= DISTANCETRAVELLED >= 340:
-        rc.drive.set_speed_angle(1, 0.8)
-    else:
-        rc.drive.set_speed_angle(speed, angle)
+    # Apply initial turn boost logic from original code
+    # This should apply to the angle_pid calculated by the proportional controller
     if counter_1 < 3:
-        if angle > 0:
-            angle += 0.1
-        elif angle < 0:
-            angle -= 0.1
+        if angle_pid > 0:
+            angle_pid = min(1.0, angle_pid + 0.1)
+        elif angle_pid < 0:
+            angle_pid = max(-1.0, angle_pid - 0.1)
+    
+    # print("Error: " + str(error)) # Optional debug
+    # rc.drive.set_max_speed() # Original call. Consider if this is needed or if max speed is set in start().
+    if front_dist < 80:
+        if right_dist >= left_dist and left_dist < 60:
+            rc.drive.set_speed_angle(1, abs(angle_pid))
+        elif left_dist >= right_dist and right_dist < 60:
+            rc.drive.set_speed_angle(1, -abs(angle_pid))
+        elif abs(left_dist - right_dist) <= tolerance_4_smtng_find_it_out_yslf:
+            rc.drive.set_speed_angle(1, abs(angle_pid))
+        if angle_pid > 0:
+            angle_pid += 0.2
+        elif angle_pid < 0:
+            angle_pid -= 0.2
+    else:   
+        rc.drive.set_max_speed()
+        rc.drive.set_speed_angle(current_speed, angle_pid)
+
+    # The commented out section from the original file regarding DISTANCETRAVELLED based turn
+    # if 360 >= DISTANCETRAVELLED >= 340:
+    #     rc.drive.set_speed_angle(1, 0.8)
+    #     print("Forced trurn wall")
+    # else:
+    # if left_dist around 110 and right_dist around 110 and front_dist < 70:
+        # rc.drive.set_speed_angle(1, 0.8)
+        # for 1 seccond even if the condition is no longer true
+
     
     # if 5.5 > counter_1 > 5:
     #     rc.drive.set_speed_angle(1, 1)
