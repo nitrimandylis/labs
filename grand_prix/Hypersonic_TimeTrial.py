@@ -32,9 +32,9 @@ rc = racecar_core.create_racecar()
 isSimulation = True
 
 # Windows for LIDAR
-LEFT_WINDOW = (-45, -15)
-RIGHT_WINDOW = (15, 45)
-FRONT_WINDOW = (-10, 10)  # Define a window for directly in front of the car
+LEFT_WINDOW = (-45, -20)
+RIGHT_WINDOW = (20, 45)
+FRONT_WINDOW = (-20, 20)  # Define a window for directly in front of the car
 
 # Color Ranges (HSV)
 RED = ((170, 50, 50), (10, 255, 255))
@@ -148,6 +148,9 @@ distance_difference = 0
 Measuring = False  # Flag to start/stop distance measurement
 distance_traveled = 0.0  # Total distance traveled since Measuring was set to True
 last_measure_time = 0.0  # Time of last measurement update
+
+# Wall Following Debug UI Data
+wall_following_debug_data = {}
 
 ########################################################################################
 # Classes and Enums
@@ -748,14 +751,14 @@ def ID_2_Handler():
     if distance_to_marker <= 30 and ID == 2 or distance_to_marker == None and ID == 2 or distance_to_marker == 10000 :
         Timer2 += rc.get_delta_time()
         previous_ID = 2
-        if DISTANCETRAVELLED >= 1570.052:
+        if DISTANCETRAVELLED >= 1560.052:
             ID_3_Handler()
             print("Forced wall following")
           #12.7
-        elif DISTANCETRAVELLED >= 1540.052000000000000000000000000000:
+        elif DISTANCETRAVELLED >= 1520.052000000000000000000000000000:
             rc.drive.set_speed_angle(1, 1)
             print("Forced right turn")
-        elif DISTANCETRAVELLED <= 1535.052000000000000000000000000000:
+        elif DISTANCETRAVELLED <= 1510.052000000000000000000000000000:
             ID_2_Updtae()
         else:
             rc.drive.set_speed_angle(0, 0)
@@ -768,14 +771,14 @@ def ID_2_Handler():
 def update():
     """Main update function for marker detection"""
     global previous_colour, Lane_priority, current_color_index, Slow_oreint, ID, previous_ID, marker_timeout, turning_timer, is_turning_right, contour_corners, distance_to_marker, current_time , counter, COLOR , Orientation, Timer2
-    print("id IS :", ID)
-    print("previous ID IS :", previous_ID)
-    print("COLOR IS :", COLOR)
-    print("previous COLOUR IS :", previous_colour)
-    print("counter is:", counter)
-    # Update current time
-    print("RNG is :", RNG)
-    # RNG is  2 when wprks
+    # print("id IS :", ID)
+    # print("previous ID IS :", previous_ID)
+    # print("COLOR IS :", COLOR)
+    # print("previous COLOUR IS :", previous_colour)
+    # print("counter is:", counter)
+    # # Update current time
+    # print("RNG is :", RNG)
+    # # RNG is  2 when wprks
     current_time += rc.get_delta_time()
     save_current_markers()
     
@@ -823,16 +826,16 @@ def update():
         print("invalid ID")
     if ID == 199 and COLOR is not None or ID == 0 and COLOR is not None:
         Line_Handles_Color_ID()
-        print("lines")
+        # print("lines")
     if ID == 1 :
         ID_1_Handler()
-        print("Lane")
+        # print("Lane")
     if ID == 2:
         ID_2_Handler()
-        print("Slalom")
+        # print("Slalom")
     if ID == 3:
         ID_3_Handler()
-        print("Wall")
+        # print("Wall")
     if ID == 4:
         if COLOR == "RED" or distance_to_marker < 35:
             rc.drive.set_speed_angle(0, angle_to_marker)
@@ -872,7 +875,8 @@ def update():
                 previous_ID = 1
                 ID = previous_ID
                     
-
+        if previous_ID == 3 and counter < 0.1:
+                rc.drive.set_speed_angle(0.7, angle_to_marker)
         if distance_to_marker < 40 and ID != 1:
             print("Other ID 199 reaction")
             angle = -1  # Full left turn
@@ -886,7 +890,8 @@ def update():
                 angle = 0
 
             rc.drive.set_speed_angle(1, angle)
-            
+            # if previous_ID == 3 and counter < 0.1:
+            #     rc.drive.set_speed_angle(0.7, angle_to_marker)
             if previous_ID == 3 and counter > 0.1:
                 previous_ID = 3
                 ID_3_Handler()
@@ -917,6 +922,65 @@ def update_slow():
     print(f"Current IDs: ID={ID}, previous_ID={previous_ID}, COLOR={COLOR}, previous_colour={previous_colour}")
 
 ########################################################################################
+# Debug UI Functions for Wall Following
+########################################################################################
+
+def update_wall_debug_value(key, value):
+    """Stores a key-value pair for the wall following debug UI."""
+    global wall_following_debug_data
+    wall_following_debug_data[key] = value
+
+def display_wall_debug_on_image(image):
+    """Draws the wall following debug data onto the provided image."""
+    global wall_following_debug_data
+    if image is None:
+        return None
+
+    display_image = image.copy()
+    debug_pane_height = 200 # Adjusted height for more info
+    h, w = display_image.shape[:2]
+
+    # Create a semi-transparent overlay for the debug text
+    overlay = display_image.copy()
+    cv.rectangle(overlay, (0, 0), (w, debug_pane_height), (0, 0, 0), -1)  # Black background
+    alpha = 0.6  # Transparency factor
+    cv.addWeighted(overlay, alpha, display_image, 1 - alpha, 0, display_image)
+
+    # Text properties
+    font = cv.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    font_color = (50, 255, 50)  # Light green
+    font_thickness = 1
+    line_height = 18
+    start_x = 10
+    start_y = 20
+
+    # Order of display for important items
+    display_order = [
+        "LIDAR Left", "LIDAR Right", "LIDAR Front", 
+        "Wall Error", "Calculated Angle", "Current Speed",
+        "Counter", "Distance Traveled", "Measuring Status",
+        "Wall Condition"
+    ]
+
+    current_y = start_y
+    for key in display_order:
+        value = wall_following_debug_data.get(key)
+        if value is not None:
+            text = f"{key}: {value:.2f}" if isinstance(value, float) else f"{key}: {value}"
+            cv.putText(display_image, text, (start_x, current_y), font, font_scale, font_color, font_thickness)
+            current_y += line_height
+        
+    # Display any other items not in the specific order (optional)
+    # for key, value in wall_following_debug_data.items():
+    #     if key not in display_order:
+    #         text = f"{key}: {value:.2f}" if isinstance(value, float) else f"{key}: {value}"
+    #         cv.putText(display_image, text, (start_x, current_y), font, font_scale, font_color, font_thickness)
+    #         current_y += line_height
+            
+    return display_image
+
+########################################################################################
 # Wall Following Functions
 ########################################################################################
             
@@ -925,9 +989,10 @@ def update_slow():
 
 def WALL_START_ID_3():
     """Initialize the wall following behavior with simple proportional control"""
-    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf
+    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf , smaller_tolerance
     counter_1 = 0
-    tolerance_4_smtng_find_it_out_yslf = 23
+    tolerance_4_smtng_find_it_out_yslf = 25
+    smaller_tolerance = 15
     measure_distance_traveled()
     Measuring = False
     DISTANCETRAVELLED = 0
@@ -961,7 +1026,7 @@ def WALL_FOLLOWING_UPDATE_ID_3():
 
     error = right_dist - left_dist  
     maxError = 12
-    kP = 0.5
+    kP = 0.4
 
     angle_pid = rc_utils.clamp(kP * error / maxError, -1, 1)
     current_speed = DRIVE_SPEED # Global DRIVE_SPEED
@@ -976,18 +1041,30 @@ def WALL_FOLLOWING_UPDATE_ID_3():
     
     # print("Error: " + str(error)) # Optional debug
     # rc.drive.set_max_speed() # Original call. Consider if this is needed or if max speed is set in start().
-    if front_dist < 80:
-        if right_dist >= left_dist and left_dist < 60:
-            rc.drive.set_speed_angle(1, abs(angle_pid))
-        elif left_dist >= right_dist and right_dist < 60:
-            rc.drive.set_speed_angle(1, -abs(angle_pid))
-        elif abs(left_dist - right_dist) <= tolerance_4_smtng_find_it_out_yslf:
-            rc.drive.set_speed_angle(1, abs(angle_pid))
+    if front_dist < 150:
+        current_speed = 0.5
+       #THE PROBLEM IS THAT WHEN THE CAR
+    if front_dist < 70:
         if angle_pid > 0:
-            angle_pid += 0.2
+            angle_pid += 0.5
         elif angle_pid < 0:
-            angle_pid -= 0.2
+            angle_pid -= 0.5
+        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
+        if right_dist >= left_dist and left_dist < 30:
+            rc.drive.set_speed_angle(current_speed, abs(angle_pid))
+            print("only right lane available")
+        elif left_dist >= right_dist and right_dist < 30:
+            rc.drive.set_speed_angle(current_speed, -abs(angle_pid))
+            print("only left lane available")
+        elif abs(left_dist - right_dist) <= tolerance_4_smtng_find_it_out_yslf:
+            rc.drive.set_speed_angle(current_speed, abs(angle_pid))
+            print("both lanes available")
+        elif left_dist < 30 and right_dist < 30:
+            rc.drive.set_speed_angle(current_speed, 0)
+            print("No lanes available")
+        
     else:   
+        print("No obstacle in front")
         rc.drive.set_max_speed()
         rc.drive.set_speed_angle(current_speed, angle_pid)
 
@@ -1709,15 +1786,15 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.6  # Restore to original value of 0.6
+        angle += 0.2  # Restore to original value of 0.6
     elif angle < 0:
-        angle -= 0.7
+        angle -= 0.2
     angle = rc_utils.clamp(angle, -1, 1)
     
     speed_factor = 1.0 - abs(angle) * 1.5
     calculate_speed = speed * max(0.5, speed_factor)
     rc.drive.set_max_speed(0.5)
-    calculate_speed = 1
+    calculate_speed = 0.8
     
     print(f"Speed: {calculate_speed:.2f}, Angle: {angle:.2f}")
     
@@ -3246,4 +3323,5 @@ if __name__ == "__main__":
 
 
 
+                                
                                 

@@ -511,16 +511,16 @@ def update():
     # Update lane following and apply speed/angle
     speed, angle = update_Lane()
     rc.drive.set_speed_angle(speed, angle)
-    # joystick_vals = rc.controller.get_joystick(rc.controller.Joystick.LEFT)
-    # controller_angle = joystick_vals[0]  # Extract x component
+    joystick_vals = rc.controller.get_joystick(rc.controller.Joystick.LEFT)
+    controller_angle = joystick_vals[0]  # Extract x component
     
-    # # Right trigger for forward, left trigger for reverse
-    # right_trigger = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
-    # left_trigger = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    # controller_speed = right_trigger - left_trigger
+    # Right trigger for forward, left trigger for reverse
+    right_trigger = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
+    left_trigger = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
+    controller_speed = right_trigger - left_trigger
     
-    # # Always apply user's controller inputs to car
-    # rc.drive.set_speed_angle(controller_speed, controller_angle)
+    # Always apply user's controller inputs to car
+    rc.drive.set_speed_angle(controller_speed, controller_angle)
     
 
 def update_slow():
