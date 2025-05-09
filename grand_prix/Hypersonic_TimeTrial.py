@@ -35,7 +35,7 @@ isSimulation = True
 LEFT_WINDOW = (-45, -20)
 RIGHT_WINDOW = (20, 45)
 FRONT_WINDOW = (-20, 20)  # Define a window for directly in front of the car
-Front_window_4_carsh_detect = (-180 , 180)
+Front_window_4_carsh_detect = (-80 , 80)
 
 # Color Ranges (HSV)
 RED = ((170, 50, 50), (10, 255, 255))
@@ -778,7 +778,7 @@ def ID_2_Handler():
 
 def update():
     """Main update function for marker detection"""
-    global previous_colour, Lane_priority, current_color_index, Slow_oreint, ID, previous_ID, marker_timeout, turning_timer, is_turning_right, contour_corners, distance_to_marker, current_time , counter, COLOR , Orientation, Timer2
+    global previous_colour, Lane_priority, current_color_index, Slow_oreint, ID, previous_ID, marker_timeout, turning_timer, is_turning_right, contour_corners, distance_to_marker, current_time , counter, COLOR , Orientation, Timer2 , Marker_in_view
     global front_distance, is_crashed_or_stalled, speed # Add front_distance, is_crashed_or_stalled, speed
 
     current_time += rc.get_delta_time()
@@ -821,6 +821,7 @@ def update():
             # Update global variables based on first marker
             if len(markers) > 0:
                 marker = markers[0]
+                Marker_in_view = True
                 # Use a distinct variable name for clarity for the ID from the current AR marker
                 detected_id_from_current_marker = marker.get_id() 
                 
@@ -845,6 +846,7 @@ def update():
                         distance_to_marker = 10000 # Default if no corners
                         angle_to_marker = 0 # Default if no corners
                 else:
+                    Marker_in_view = False
                     # This specific AR marker has an invalid ID.
                     # So, we do *not* update global ID, previous_ID, COLOR, Orientation, distance, angle, etc.
                     # based on this invalid marker. They will retain their values from save_current_markers()
@@ -929,6 +931,7 @@ def update():
                 if counter > 0.2:
                     print("Lane Activated 199")
                     ID_1_Handler()
+
                     rc.drive.set_speed_angle(1, angle)
                     previous_ID = 1
                     ID = previous_ID
@@ -952,7 +955,9 @@ def update():
                 #     rc.drive.set_speed_angle(0.7, angle_to_marker)
                 if previous_ID == 3 and counter > 0.1:
                     previous_ID = 3
+                    Turn_Harder = True
                     ID_3_Handler()
+
                     ID = previous_ID
                 
                 if previous_ID == 2 and counter > 0.2:
@@ -1048,9 +1053,10 @@ def display_wall_debug_on_image(image):
 
 def WALL_START_ID_3():
     """Initialize the wall following behavior with simple proportional control"""
-    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf , smaller_tolerance
+    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf , smaller_tolerance , Turn_Harder
     counter_1 = 0
     tolerance_4_smtng_find_it_out_yslf = 25
+    Turn_Harder = False
     smaller_tolerance = 15
     measure_distance_traveled()
     Measuring = False
@@ -1061,7 +1067,7 @@ def WALL_START_ID_3():
 
 def WALL_FOLLOWING_UPDATE_ID_3():
     """Updates the wall following behavior with simple proportional control from smtggg.py"""
-    global counter_1 , DISTANCETRAVELLED , Measuring , angle_pid
+    global counter_1 , DISTANCETRAVELLED , Measuring , angle_pid , Turn_Harder
     counter_1 += rc.get_delta_time()
     
     if counter_1 < 0.4:
@@ -1093,11 +1099,19 @@ def WALL_FOLLOWING_UPDATE_ID_3():
 
     # Apply initial turn boost logic from original code
     # This should apply to the angle_pid calculated by the proportional controller
+    if Marker_in_view:
+        angle_pid += angle_to_marker
+        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
     if counter_1 < 3:
         if angle_pid > 0:
             angle_pid = min(1.0, angle_pid + 0.1)
         elif angle_pid < 0:
             angle_pid = max(-1.0, angle_pid - 0.1)
+    if Turn_Harder:
+        if angle_pid > 0:
+            angle_pid = min(1.0, angle_pid + 0.3)
+        elif angle_pid < 0:
+            angle_pid = max(-1.0, angle_pid - 0.3)
     
     # print("Error: " + str(error)) # Optional debug
     # rc.drive.set_max_speed() # Original call. Consider if this is needed or if max speed is set in start().
@@ -1846,14 +1860,14 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.4  # Restore to original value of 0.6
+        angle += 0.7  # Restore to original value of 0.6
     elif angle < 0:
-        angle -= 0.4
+        angle -= 0.7
     angle = rc_utils.clamp(angle, -1, 1)
     
     speed_factor = 1.0 - abs(angle) * 1.5
     calculate_speed = speed * max(0.5, speed_factor)
-    rc.drive.set_max_speed(0.5)
+    rc.drive.set_max_speed(0.75)
     calculate_speed = 0.8
     
     print(f"Speed: {calculate_speed:.2f}, Angle: {angle:.2f}")
