@@ -35,7 +35,7 @@ isSimulation = True
 LEFT_WINDOW = (-45, -20)
 RIGHT_WINDOW = (20, 45)
 FRONT_WINDOW = (-20, 20)  # Define a window for directly in front of the car
-Front_window_4_carsh_detect = (-80 , 80)
+Front_window_4_carsh_detect = (-15 , 15)
 
 # Color Ranges (HSV)
 RED = ((170, 50, 50), (10, 255, 255))
@@ -524,15 +524,15 @@ def save_current_markers():
 
 def start():
     """Initialize the marker detector"""
-    global current_time, counter, Slow_oreint, previous_ID, ID, previous_colour, COLOR, angle_to_marker
+    global current_time, counter, Slow_oreint, previous_ID, ID, previous_colour, COLOR, angle_to_marker , angle_to_marker , previous_distance_to_marker
     global slalom_state, slalom_color_priority, slalom_last_distance, slalom_counter, Timer2 , Measuring , DISTANCETRAVELLED , RNG
     
     RNG = random.randint(1 ,2)
     print("RNG is :", RNG)
     
     print_info()
-    
-    
+    angle_to_marker = 0
+    previous_distance_to_marker = 0
     # Initialize current_time
     Measuring = False
     DISTANCETRAVELLED = 0
@@ -681,6 +681,7 @@ def ID_1_Handler():
     # If marker 1 is close enough, handle lane following behavior
     if ID == 1 and distance_to_marker < 32 or distance_to_marker == None and ID == 1 or distance_to_marker == None and ID == 1 or ID == 2:
         print("Lane following activated colour not set yet")
+        rc.drive.set_max_speed(0.6)
         if COLOR == "PURPLE" or previous_colour == "PURPLE":
             Lane_priority = 0
             speed, angle = update_Lane()
@@ -724,6 +725,7 @@ def Line_Handles_Color_ID():
 def ID_3_Handler():
     global previous_ID ,distance_to_marker , angle_to_marker , DISTANCETRAVELLED
     if ID == 3:
+        
         WALL_FOLLOWING_UPDATE_ID_3()
         previous_ID = 3
 
@@ -741,7 +743,7 @@ def ID_2_Handler():
     print("detectparllalel walls resutl" ,  distance_difference)
     detect_parallel_walls()
     measure_distance_traveled()
-    Measuring = True
+
     DISTANCETRAVELLED = measure_distance_traveled()
     print("DISTANCE-TRAVELLED IS :", DISTANCETRAVELLED)
     print("distance to marker" , distance_to_marker)
@@ -753,23 +755,29 @@ def ID_2_Handler():
             ID_3_Handler()
         else:
             rc.drive.set_speed_angle(1, angle_to_marker)
-        
+        #1285
+        #1310
         print("More than 10")
-    if distance_to_marker <= 30 and ID == 2 or distance_to_marker == None and ID == 2 or distance_to_marker == 10000 :
+    if distance_to_marker <= 30 and ID == 2 or distance_to_marker == 0 and ID == 2 or distance_to_marker == 10000  :
         Timer2 += rc.get_delta_time()
+        Measuring = True
         previous_ID = 2
-        if DISTANCETRAVELLED >= 1560.052:
+        if Timer2 > 20:
+            ID_3_Handler()
+        if DISTANCETRAVELLED >= 1340.052:
             ID_3_Handler()
             ID = 3
             print("Forced wall following")
           #12.7
-        elif DISTANCETRAVELLED >= 1520.052000000000000000000000000000:
+        elif DISTANCETRAVELLED >= 1300.052000000000000000000000000000:
             rc.drive.set_speed_angle(1, 1)
             print("Forced right turn")
-        elif DISTANCETRAVELLED <= 1510.052000000000000000000000000000:
+        elif DISTANCETRAVELLED <= 1298.052000000000000000000000000000:
             ID_2_Updtae()
         else:
             rc.drive.set_speed_angle(0, 0)
+    else:
+        Measuring = False
         
 
 ########################################################################################
@@ -778,8 +786,8 @@ def ID_2_Handler():
 
 def update():
     """Main update function for marker detection"""
-    global previous_colour, Lane_priority, current_color_index, Slow_oreint, ID, previous_ID, marker_timeout, turning_timer, is_turning_right, contour_corners, distance_to_marker, current_time , counter, COLOR , Orientation, Timer2 , Marker_in_view
-    global front_distance, is_crashed_or_stalled, speed # Add front_distance, is_crashed_or_stalled, speed
+    global previous_colour, Lane_priority, current_color_index, Slow_oreint, ID, previous_ID, marker_timeout, turning_timer, is_turning_right, contour_corners, distance_to_marker, current_time , counter, COLOR , Orientation, Timer2 , Marker_in_view , angle_to_marker , previous_distance_to_marker , angle_pid
+    global front_distance, is_crashed_or_stalled, speed , Turn_Harder , Just_After_crash # Add front_distance, is_crashed_or_stalled, speed
 
     current_time += rc.get_delta_time()
     save_current_markers() # This updates ID, COLOR, distance_to_marker, etc.
@@ -797,7 +805,7 @@ def update():
 
     # Set the global is_crashed_or_stalled flag
     # This uses the global 'speed', which should reflect the last commanded speed from the previous frame or start of current.
-    if current_front_lidar_dist < CRASH_DISTANCE_THRESHOLD_CM and int(time.time()) % 4 == 0:
+    if current_front_lidar_dist < CRASH_DISTANCE_THRESHOLD_CM and int(time.time()) % 1 == 0 :
         is_crashed_or_stalled = True
         print(f"DEBUG: Crash/Stall DETECTED - front_dist: {current_front_lidar_dist:.1f}, speed: {speed:.2f}")
     else:
@@ -859,16 +867,37 @@ def update():
                 # are now correctly placed inside the 'if detected_id_from_current_marker is valid' block.
     
     # Only print marker info occasionally to reduce console output
-    if int(current_time * 2) % 2 == 0:  # Every 0.5 seconds
-        if ID != previous_ID:
-            print(f"ID: {ID}, COLOR: {COLOR}, Distance: {distance_to_marker:.1f}cm")
+
 
     # Process marker logic - use optimized conditional structure
+
+
+
+    if int(time.time()) % 6 == 0 and ID != 199:
+        previous_distance_to_marker = distance_to_marker
+    if previous_distance_to_marker == distance_to_marker and ID != 199:
+        distance_to_marker = 0
+
+
+
+
+
+
+
+
+
     if is_crashed_or_stalled and ID == 3:
         print("Crashed or stalled")
+        Just_After_crash = True
         rc.drive.set_max_speed(1)
+        if angle_pid > 0:
+            angle_pid += 0.4
+        else:
+            angle_pid -= 0.4
+        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
         rc.drive.set_speed_angle(-1, -angle_pid)
     else:
+        Just_After_crash = False
         # Corrected logic for Snippet 2 (Fallback for global ID):
         # This runs if the car is not in the ID 3 crashed state.
         # It checks if the global ID, after all prior processing, is still invalid.
@@ -936,9 +965,32 @@ def update():
                     previous_ID = 1
                     ID = previous_ID
                         
-            if previous_ID == 3 and counter < 0.1:
-                    rc.drive.set_speed_angle(0.5, angle_to_marker)
-            if distance_to_marker < 40 and ID != 1:
+            if previous_ID == 3 and counter < 0.3:
+                    lidar_data = rc.lidar.get_samples()
+                    if lidar_data is not None and len(lidar_data) > 0:
+                        min_distance = np.min(lidar_data)
+                        min_angle = np.argmin(lidar_data)
+                        
+                        # If obstacle detected, adjust steering to avoid it
+                        if min_distance < 100 and abs(min_angle - 0) < 60:
+                            # Calculate avoidance angle (turn away from obstacle)
+                            avoidance_angle = 0.5 if min_angle < 180 else -0.5
+                            # Blend marker approach with obstacle avoidance
+                            if angle_to_marker > 0:
+                                final_angle = angle_to_marker - avoidance_angle
+                            elif angle_to_marker < 0 :
+                                final_angle = angle_to_marker + avoidance_angle
+
+                        
+                            final_angle = rc_utils.clamp(final_angle, -1.0, 1.0)
+                            rc.drive.set_speed_angle(0.8, final_angle)
+                        else:
+                            # No obstacle, continue toward marker
+                            rc.drive.set_speed_angle(1, angle_to_marker)
+                    else:
+                        # No valid lidar data, continue toward marker
+                        rc.drive.set_speed_angle(1, angle_to_marker)
+            if distance_to_marker < 40 and previous_ID != 1 and previous_ID != 3:
                 print("Other ID 199 reaction")
                 angle = -1  # Full left turn
                 
@@ -953,18 +1005,30 @@ def update():
                 rc.drive.set_speed_angle(1, angle)
                 # if previous_ID == 3 and counter < 0.1:
                 #     rc.drive.set_speed_angle(0.7, angle_to_marker)
-                if previous_ID == 3 and counter > 0.1:
-                    previous_ID = 3
-                    Turn_Harder = True
-                    ID_3_Handler()
-
-                    ID = previous_ID
+               
                 
                 if previous_ID == 2 and counter > 0.2:
                     ID_2_Handler()
                     previous_ID = 2
                     ID = previous_ID
+            if distance_to_marker < 30 and ID != 1:
+                print("other other reaction")
+                counter += rc.get_delta_time()
+                if Orientation == Orientation.RIGHT:
+                    angle = 1
+                elif Orientation == Orientation.LEFT:
+                    angle = -1
+                else:
+                    angle = 0
 
+                rc.drive.set_speed_angle(1, angle)
+                Turn_Harder = True 
+                if previous_ID == 3 and counter > 0.3:
+                    previous_ID = 3
+                    
+                    ID_3_Handler()
+
+                    ID = previous_ID
 
 def update_slow():
     """Periodic updates for status information"""
@@ -1053,11 +1117,13 @@ def display_wall_debug_on_image(image):
 
 def WALL_START_ID_3():
     """Initialize the wall following behavior with simple proportional control"""
-    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf , smaller_tolerance , Turn_Harder
+    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf , smaller_tolerance , Turn_Harder , angle_to_marker , angle_pid
     counter_1 = 0
+    angle_pid = 0
     tolerance_4_smtng_find_it_out_yslf = 25
     Turn_Harder = False
     smaller_tolerance = 15
+    angle_to_marker = 0
     measure_distance_traveled()
     Measuring = False
     DISTANCETRAVELLED = 0
@@ -1067,9 +1133,9 @@ def WALL_START_ID_3():
 
 def WALL_FOLLOWING_UPDATE_ID_3():
     """Updates the wall following behavior with simple proportional control from smtggg.py"""
-    global counter_1 , DISTANCETRAVELLED , Measuring , angle_pid , Turn_Harder
+    global counter_1 , DISTANCETRAVELLED , Measuring , angle_pid , Turn_Harder , Just_After_crash
     counter_1 += rc.get_delta_time()
-    
+    print("turn garder ", Turn_Harder)
     if counter_1 < 0.4:
         measure_distance_traveled()
         Measuring = False
@@ -1097,9 +1163,16 @@ def WALL_FOLLOWING_UPDATE_ID_3():
     rc.drive.set_max_speed()
     current_speed = DRIVE_SPEED # Global DRIVE_SPEED
 
+    if Just_After_crash:
+        if angle_pid > 0:
+            angle_pid += 0.4
+        else:
+            angle_pid -= 0.4
+        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
     # Apply initial turn boost logic from original code
     # This should apply to the angle_pid calculated by the proportional controller
-    if Marker_in_view:
+    print("distance_to_marker", distance_to_marker)
+    if Marker_in_view and distance_to_marker > 15:
         angle_pid += angle_to_marker
         angle_pid = rc_utils.clamp(angle_pid, -1, 1)
     if counter_1 < 3:
@@ -1109,20 +1182,20 @@ def WALL_FOLLOWING_UPDATE_ID_3():
             angle_pid = max(-1.0, angle_pid - 0.1)
     if Turn_Harder:
         if angle_pid > 0:
-            angle_pid = min(1.0, angle_pid + 0.3)
+            angle_pid += 0.8
         elif angle_pid < 0:
-            angle_pid = max(-1.0, angle_pid - 0.3)
+            angle_pid -= 0.8
+        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
     
     # print("Error: " + str(error)) # Optional debug
     # rc.drive.set_max_speed() # Original call. Consider if this is needed or if max speed is set in start().
     if front_dist < 150:
         current_speed = 0.65
-       #THE PROBLEM IS THAT WHEN THE CAR
     if front_dist < 70:
         if angle_pid > 0:
-            angle_pid += 0.6
+            angle_pid += 0.8
         elif angle_pid < 0:
-            angle_pid -= 0.6
+            angle_pid -= 0.8
         angle_pid = rc_utils.clamp(angle_pid, -1, 1)
         if right_dist >= left_dist and left_dist < 50:
             rc.drive.set_speed_angle(current_speed, abs(angle_pid))
@@ -1141,6 +1214,8 @@ def WALL_FOLLOWING_UPDATE_ID_3():
         print("No obstacle in front")
         rc.drive.set_max_speed()
         rc.drive.set_speed_angle(current_speed, angle_pid)
+    print("angle_pid", angle_pid)
+
 
     # The commented out section from the original file regarding DISTANCETRAVELLED based turn
     # if 360 >= DISTANCETRAVELLED >= 340:
@@ -1860,14 +1935,13 @@ def update_Lane():
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.7  # Restore to original value of 0.6
+        angle += 0.6  # Restore to original value of 0.6
     elif angle < 0:
-        angle -= 0.7
+        angle -= 0.6
     angle = rc_utils.clamp(angle, -1, 1)
     
     speed_factor = 1.0 - abs(angle) * 1.5
     calculate_speed = speed * max(0.5, speed_factor)
-    rc.drive.set_max_speed(0.75)
     calculate_speed = 0.8
     
     print(f"Speed: {calculate_speed:.2f}, Angle: {angle:.2f}")
