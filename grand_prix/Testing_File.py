@@ -34,8 +34,7 @@ isSimulation = True
 # Windows for LIDAR
 LEFT_WINDOW = (-45, -20)
 RIGHT_WINDOW = (20, 45)
-FRONT_WINDOW = (-60, 60)  # Define a window for directly in front of the car
-Front_window_4_carsh_detect = (-15 , 15)
+FRONT_WINDOW = (-20, 20)  # Define a window for directly in front of the car
 
 # Color Ranges (HSV)
 RED = ((170, 50, 50), (10, 255, 255))
@@ -153,8 +152,8 @@ last_measure_time = 0.0  # Time of last measurement update
 
 # Crash detection global
 is_crashed_or_stalled = False
-CRASH_DISTANCE_THRESHOLD_CM = 25.0 # cm, for front LIDAR
-MIN_SPEED_FOR_STALL_CHECK_CM = 2 # Min commanded speed to consider a stall
+CRASH_DISTANCE_THRESHOLD_CM = 15.0 # cm, for front LIDAR
+MIN_SPEED_FOR_STALL_CHECK_CM = 0.1 # Min commanded speed to consider a stall
 
 # Wall Following Debug UI Data
 wall_following_debug_data = {}
@@ -524,16 +523,15 @@ def save_current_markers():
 
 def start():
     """Initialize the marker detector"""
-    global current_time, counter, Slow_oreint, previous_ID, ID, previous_colour, COLOR, angle_to_marker , angle_to_marker , previous_distance_to_marker
-    global slalom_state, slalom_color_priority, slalom_last_distance, slalom_counter, Timer2 , Measuring , DISTANCETRAVELLED , RNG , angle_crashed
+    global current_time, counter, Slow_oreint, previous_ID, ID, previous_colour, COLOR, angle_to_marker
+    global slalom_state, slalom_color_priority, slalom_last_distance, slalom_counter, Timer2 , Measuring , DISTANCETRAVELLED , RNG
     
     RNG = random.randint(1 ,2)
     print("RNG is :", RNG)
     
-    angle_crashed = 0
     print_info()
-    angle_to_marker = 0
-    previous_distance_to_marker = 0
+    
+    
     # Initialize current_time
     Measuring = False
     DISTANCETRAVELLED = 0
@@ -682,7 +680,6 @@ def ID_1_Handler():
     # If marker 1 is close enough, handle lane following behavior
     if ID == 1 and distance_to_marker < 32 or distance_to_marker == None and ID == 1 or distance_to_marker == None and ID == 1 or ID == 2:
         print("Lane following activated colour not set yet")
-        rc.drive.set_max_speed(0.6)
         if COLOR == "PURPLE" or previous_colour == "PURPLE":
             Lane_priority = 0
             speed, angle = update_Lane()
@@ -726,12 +723,11 @@ def Line_Handles_Color_ID():
 def ID_3_Handler():
     global previous_ID ,distance_to_marker , angle_to_marker , DISTANCETRAVELLED
     if ID == 3:
-        
         WALL_FOLLOWING_UPDATE_ID_3()
         previous_ID = 3
 
 def ID_2_Handler():
-    global previous_ID, distance_to_marker, angle_to_marker, Timer2 , Measuring , DISTANCETRAVELLED , RNG , ID
+    global previous_ID, distance_to_marker, angle_to_marker, Timer2 , Measuring , DISTANCETRAVELLED , RNG
 
     # Bad is 2
     # Update Timer2
@@ -744,7 +740,7 @@ def ID_2_Handler():
     print("detectparllalel walls resutl" ,  distance_difference)
     detect_parallel_walls()
     measure_distance_traveled()
-
+    Measuring = True
     DISTANCETRAVELLED = measure_distance_traveled()
     print("DISTANCE-TRAVELLED IS :", DISTANCETRAVELLED)
     print("distance to marker" , distance_to_marker)
@@ -756,29 +752,22 @@ def ID_2_Handler():
             ID_3_Handler()
         else:
             rc.drive.set_speed_angle(1, angle_to_marker)
-        #1285
-        #1310
+        
         print("More than 10")
-    if distance_to_marker <= 30 and ID == 2 or distance_to_marker == 0 and ID == 2 or distance_to_marker == 10000  :
+    if distance_to_marker <= 30 and ID == 2 or distance_to_marker == None and ID == 2 or distance_to_marker == 10000 :
         Timer2 += rc.get_delta_time()
-        Measuring = True
         previous_ID = 2
-        if Timer2 > 20:
+        if DISTANCETRAVELLED >= 1560.052:
             ID_3_Handler()
-        if DISTANCETRAVELLED >= 1340.052:
-            ID_3_Handler()
-            ID = 3
             print("Forced wall following")
           #12.7
-        elif DISTANCETRAVELLED >= 1300.052000000000000000000000000000:
+        elif DISTANCETRAVELLED >= 1520.052000000000000000000000000000:
             rc.drive.set_speed_angle(1, 1)
             print("Forced right turn")
-        elif DISTANCETRAVELLED <= 1298.052000000000000000000000000000:
+        elif DISTANCETRAVELLED <= 1510.052000000000000000000000000000:
             ID_2_Updtae()
         else:
             rc.drive.set_speed_angle(0, 0)
-    else:
-        Measuring = False
         
 
 ########################################################################################
@@ -787,34 +776,20 @@ def ID_2_Handler():
 
 def update():
     """Main update function for marker detection"""
-    global previous_colour, Lane_priority, current_color_index, Slow_oreint, ID, previous_ID, marker_timeout, turning_timer, is_turning_right, contour_corners, distance_to_marker, current_time , counter, COLOR , Orientation, Timer2 , Marker_in_view , angle_to_marker , previous_distance_to_marker , angle_pid
-    global front_distance, is_crashed_or_stalled, speed , Turn_Harder , Just_After_crash , angle_crashed  # Add front_distance, is_crashed_or_stalled, speed
-
+    global previous_colour, Lane_priority, current_color_index, Slow_oreint, ID, previous_ID, marker_timeout, turning_timer, is_turning_right, contour_corners, distance_to_marker, current_time , counter, COLOR , Orientation, Timer2
+    # print("id IS :", ID)
+    # print("previous ID IS :", previous_ID)
+    # print("COLOR IS :", COLOR)
+    # print("previous COLOUR IS :", previous_colour)
+    # print("counter is:", counter)
+    # # Update current time
+    # print("RNG is :", RNG)
+    # # RNG is  2 when wprks
     current_time += rc.get_delta_time()
-    save_current_markers() # This updates ID, COLOR, distance_to_marker, etc.
-
-    # --- LIDAR Front Distance Update and Crash/Stall Detection ---
-    scan = rc.lidar.get_samples() 
-    current_front_lidar_dist = 1000.0 # Default if no scan or no point in window
-    if scan is not None:
-        # Use the globally defined FRONT_WINDOW for general front obstacle detection
-        _ , temp_dist = rc_utils.get_lidar_closest_point(scan, Front_window_4_carsh_detect) 
-        if temp_dist > 0: # A valid detection
-            current_front_lidar_dist = temp_dist
+    save_current_markers()
     
-    # front_distance = current_front_lidar_dist # Update global front_distance. 
-
-    # Set the global is_crashed_or_stalled flag
-    # This uses the global 'speed', which should reflect the last commanded speed from the previous frame or start of current.
-    if current_front_lidar_dist < CRASH_DISTANCE_THRESHOLD_CM and int(time.time()) % 3 == 0 :
-        is_crashed_or_stalled = True
-        print(f"DEBUG: Crash/Stall DETECTED - front_dist: {current_front_lidar_dist:.1f}, speed: {speed:.2f}")
-    else:
-        is_crashed_or_stalled = False
-        print(f"DEBUG: No Crash/Stall - front_dist: {current_front_lidar_dist:.1f}, speed: {speed:.2f}")
-    
-    # --- Distance Measurement (uses the is_crashed_or_stalled flag internally) ---
-    measure_distance_traveled()
+    # Update distance measurement
+    measure_distance_traveled()  # Call the function here for better placement
     
     # Process markers only once per frame to avoid redundant processing
     current_image = rc.camera.get_color_image()
@@ -830,209 +805,108 @@ def update():
             # Update global variables based on first marker
             if len(markers) > 0:
                 marker = markers[0]
-                Marker_in_view = True
-                # Use a distinct variable name for clarity for the ID from the current AR marker
-                detected_id_from_current_marker = marker.get_id() 
+                detected_id = marker.get_id()
                 
-                # Corrected logic for Snippet 1 (around original line 826):
-                # Check if the ID from the *currently processed AR marker* is valid.
-                if detected_id_from_current_marker in [0, 1, 2, 3, 199]:
-                    # This AR marker has a valid ID. Let's use it.
-                    if ID != detected_id_from_current_marker:
-                        previous_ID = ID  # The old global ID becomes the previous_ID
-                        ID = detected_id_from_current_marker # Update global ID to this valid one
-                    # else: The current global ID is already the same as this valid detected ID. No change to ID or previous_ID needed.
-                    
-                    # Since this marker's ID is valid and now set as the global ID (or was already),
-                    # update all related global variables from this marker's properties.
-                    COLOR = marker.get_color()
-                    Orientation = marker.get_orientation()
-                    contour_corners = marker.get_corners()
-                    if contour_corners is not None:
-                        distance_to_marker = calculate_marker_distance(contour_corners)
-                        angle_to_marker = calculate_angle_to_marker(contour_corners) # Ensure angle_to_marker is also updated
-                    else:
-                        distance_to_marker = 10000 # Default if no corners
-                        angle_to_marker = 0 # Default if no corners
+                # Only accept valid IDs
+                if ID in [0, 1, 2, 3, 199]:
+                    ID = detected_id
                 else:
-                    Marker_in_view = False
-                    # This specific AR marker has an invalid ID.
-                    # So, we do *not* update global ID, previous_ID, COLOR, Orientation, distance, angle, etc.
-                    # based on this invalid marker. They will retain their values from save_current_markers()
-                    # or a previously processed valid marker in this loop.
-                    # The fallback logic later in the update() function will handle if the global ID is still invalid.
-                    # print(f\"Info: Invalid marker ID {detected_id_from_current_marker} detected in update(). Global ID {ID} and its properties remain unchanged by this specific detection.\")
-                    pass # Explicitly do nothing with this invalid marker's data for global state variables.
+                    # Invalid ID detected, keep using previous_ID
+                    print(f"Invalid ID {detected_id} detected, using previous ID {previous_ID}")
+                    ID = previous_ID
+                COLOR = marker.get_color()
+                Orientation = marker.get_orientation()
+                contour_corners = marker.get_corners()
                 
-                # Note: The original unconditional assignments to COLOR, Orientation, etc., that were here
-                # are now correctly placed inside the 'if detected_id_from_current_marker is valid' block.
+                # Calculate distance to this marker
+                distance_to_marker = calculate_marker_distance(contour_corners)
     
     # Only print marker info occasionally to reduce console output
-
+    if int(current_time * 2) % 2 == 0:  # Every 0.5 seconds
+        if ID != previous_ID:
+            print(f"ID: {ID}, COLOR: {COLOR}, Distance: {distance_to_marker:.1f}cm")
 
     # Process marker logic - use optimized conditional structure
-
-
-
-    if int(time.time()) % 4 == 0 and ID != 199 and ID != 1 and ID != 2 and distance_to_marker < 30:
-        previous_distance_to_marker = distance_to_marker
-    if previous_distance_to_marker == distance_to_marker and ID != 199:
-        distance_to_marker = 0
-
-
-
-
-
-
-
-
-
-    if is_crashed_or_stalled and ID == 3 or is_crashed_or_stalled and ID == 199:
-        print("Crashed or stalled")
-        Just_After_crash = True
-        rc.drive.set_max_speed(1)
+    if ID not in [0,1,2,3,199]:
+        ID = previous_ID if previous_ID in [0,1,2,3,199] else detected_id
+        print("invalid ID")
+    if ID == 199 and COLOR is not None or ID == 0 and COLOR is not None:
+        Line_Handles_Color_ID()
+        # print("lines")
+    if ID == 1 :
+        ID_1_Handler()
+        # print("Lane")
+    if ID == 2:
+        ID_2_Handler()
+        # print("Slalom")
+    if ID == 3:
+        ID_3_Handler()
+        # print("Wall")
+    if ID == 4:
+        if COLOR == "RED" or distance_to_marker < 35:
+            rc.drive.set_speed_angle(0, angle_to_marker)
+        elif COLOR == "BLUE":
+            rc.drive.set_speed_angle(0.5,angle_to_marker)
+        elif COLOR == "ORANGE":
+            rc.drive.set_speed_angle(1,angle_to_marker)
+        elif COLOR == "RED" and distance_to_marker < 70:
+            rc.drive.set_speed_angle(0.8,angle_to_marker)
         
-        if angle_pid > 0:
-            angle_pid += 1
-        else:
-            angle_pid -= 1
-        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
-        angle_pid = angle_crashed
-        rc.drive.set_speed_angle(-1, angle_crashed * -1)
-        print("angle_crashed", angle_crashed)
-    else:
-        Just_After_crash = False
-        # Corrected logic for Snippet 2 (Fallback for global ID):
-        # This runs if the car is not in the ID 3 crashed state.
-        # It checks if the global ID, after all prior processing, is still invalid.
-        if ID not in [0,1,2,3,199]:
-            original_unhandled_id = ID # For logging
-            if previous_ID in [0,1,2,3,199]:
-                ID = previous_ID
-                print(f"Info: Global ID {original_unhandled_id} was invalid. Fallback to previous_ID: {ID}.")
+    
+    if ID == 31 :
+        ID = previous_ID
+    if ID == 157:
+        ID = previous_ID
+    if ID == 35:
+        ID = previous_ID
+    if ID == 199 and COLOR is None:
+        print("Precious ID at ID 199 is:", previous_ID)
+        print("Distance to marker at ID 199 is:", distance_to_marker)
+        rc.drive.set_max_speed(0.28)
+        rc.drive.set_speed_angle(1, angle_to_marker)
+        if distance_to_marker < 20 and previous_ID == 1 or distance_to_marker <= 0 and previous_ID == 1:
+            print("Lane Following ID 199 reaction")
+            counter += rc.get_delta_time()
+            if Orientation == Orientation.RIGHT:
+                angle = 0.8
+            elif Orientation == Orientation.LEFT:
+                angle = -0.8
             else:
-                # Global ID is invalid, and previous_ID is also invalid. Revert to a safe default.
-                ID = 3 # Default to Wall Following (or another suitable default like 2 for Slalom)
-                print(f"Info: Global ID {original_unhandled_id} and previous_ID {previous_ID} were invalid. Fallback to default ID: {ID}.")
-        
-        # The original print("invalid ID") is now covered by the more specific messages above.
-        # The rest of the ID-based handling follows...
-        if ID == 199 and COLOR is not None or ID == 0 and COLOR is not None:
-            Line_Handles_Color_ID()
-            # print("lines")
-        if ID == 1 :
-            ID_1_Handler()
-            # print("Lane")
-        if ID == 2:
-            ID_2_Handler()
-            # print("Slalom")
-        if ID == 3:
-            ID_3_Handler()
-            # print("Wall")
-        if ID == 4:
-            if COLOR == "RED" or distance_to_marker < 35:
-                rc.drive.set_speed_angle(0, angle_to_marker)
-            elif COLOR == "BLUE":
-                rc.drive.set_speed_angle(0.5,angle_to_marker)
-            elif COLOR == "ORANGE":
-                rc.drive.set_speed_angle(1,angle_to_marker)
-            elif COLOR == "RED" and distance_to_marker < 70:
-                rc.drive.set_speed_angle(0.8,angle_to_marker)
-            
-        
-        if ID == 31 :
-            ID = previous_ID
-        if ID == 157:
-            ID = previous_ID
-        if ID == 35:
-            ID = previous_ID
-        if ID == 199 and COLOR is None:
-            print("Precious ID at ID 199 is:", previous_ID)
-            print("Distance to marker at ID 199 is:", distance_to_marker)
-            rc.drive.set_max_speed(0.28)
-            rc.drive.set_speed_angle(1, angle_to_marker)
-            if distance_to_marker < 20 and previous_ID == 1 or distance_to_marker <= 0 and previous_ID == 1:
-                print("Lane Following ID 199 reaction")
-                counter += rc.get_delta_time()
-                if Orientation == Orientation.RIGHT:
-                    angle = 0.8
-                elif Orientation == Orientation.LEFT:
-                    angle = -0.8
-                else:
-                    angle = 0
-                rc.drive.set_speed_angle(0.3, angle)
-                if counter > 0.2:
-                    print("Lane Activated 199")
-                    ID_1_Handler()
-
-                    rc.drive.set_speed_angle(1, angle)
-                    previous_ID = 1
-                    ID = previous_ID
-                        
-            if previous_ID == 3:
-                    lidar_data = rc.lidar.get_samples()
-                    if lidar_data is not None and len(lidar_data) > 0:
-                        min_distance = np.min(lidar_data)
-                        min_angle = np.argmin(lidar_data)
-                        
-                        # If obstacle detected, adjust steering to avoid it
-                        if min_distance < 100 and abs(min_angle - 0) < 60:
-                            # Calculate avoidance angle (turn away from obstacle)
-                            avoidance_angle = 0.5 if min_angle < 180 else -0.5
-                            # Blend marker approach with obstacle avoidance
-                            if angle_to_marker > 0:
-                                final_angle = angle_to_marker - avoidance_angle
-                            elif angle_to_marker < 0 :
-                                final_angle = angle_to_marker + avoidance_angle
-
-                        
-                            final_angle = rc_utils.clamp(final_angle, -1.0, 1.0)
-                            rc.drive.set_speed_angle(0.8, final_angle)
-                        else:
-                            # No obstacle, continue toward marker
-                            rc.drive.set_speed_angle(1, angle_to_marker)
-                    else:
-                        # No valid lidar data, continue toward marker
-                        rc.drive.set_speed_angle(1, angle_to_marker)
-            if distance_to_marker < 40 and previous_ID != 1 and previous_ID != 3:
-                print("Other ID 199 reaction")
-                angle = -1  # Full left turn
-                
-                counter += rc.get_delta_time()
-                if Orientation == Orientation.RIGHT:
-                    angle = 1
-                elif Orientation == Orientation.LEFT:
-                    angle = -1
-                else:
-                    angle = 0
-
+                angle = 0
+            rc.drive.set_speed_angle(0.3, angle)
+            if counter > 0.2:
+                print("Lane Activated 199")
+                ID_1_Handler()
                 rc.drive.set_speed_angle(1, angle)
-                # if previous_ID == 3 and counter < 0.1:
-                #     rc.drive.set_speed_angle(0.7, angle_to_marker)
-               
-                
-                if previous_ID == 2 and counter > 0.2:
-                    ID_2_Handler()
-                    previous_ID = 2
-                    ID = previous_ID
-            if distance_to_marker < 30 and ID != 1:
-                print("other other reaction")
-                counter += rc.get_delta_time()
-                if Orientation == Orientation.RIGHT:
-                    angle = 1
-                elif Orientation == Orientation.LEFT:
-                    angle = -1
-                else:
-                    angle = 0
-
-                rc.drive.set_speed_angle(1, angle)
-                Turn_Harder = True 
-                if previous_ID == 3 and counter > 0.3:
-                    previous_ID = 3
+                previous_ID = 1
+                ID = previous_ID
                     
-                    ID_3_Handler()
+        if previous_ID == 3 and counter < 0.1:
+                rc.drive.set_speed_angle(0.5, angle_to_marker)
+        if distance_to_marker < 40 and ID != 1:
+            print("Other ID 199 reaction")
+            angle = -1  # Full left turn
+            
+            counter += rc.get_delta_time()
+            if Orientation == Orientation.RIGHT:
+                angle = 1
+            elif Orientation == Orientation.LEFT:
+                angle = -1
+            else:
+                angle = 0
 
-                    ID = previous_ID
+            rc.drive.set_speed_angle(1, angle)
+            # if previous_ID == 3 and counter < 0.1:
+            #     rc.drive.set_speed_angle(0.7, angle_to_marker)
+            if previous_ID == 3 and counter > 0.1:
+                previous_ID = 3
+                ID_3_Handler()
+                ID = previous_ID
+            
+            if previous_ID == 2 and counter > 0.2:
+                ID_2_Handler()
+                previous_ID = 2
+                ID = previous_ID
 
 def update_slow():
     """Periodic updates for status information"""
@@ -1121,13 +995,10 @@ def display_wall_debug_on_image(image):
 
 def WALL_START_ID_3():
     """Initialize the wall following behavior with simple proportional control"""
-    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf , smaller_tolerance , Turn_Harder , angle_to_marker , angle_pid
+    global counter_1 , DISTANCETRAVELLED , Measuring , tolerance_4_smtng_find_it_out_yslf , smaller_tolerance
     counter_1 = 0
-    angle_pid = 0
     tolerance_4_smtng_find_it_out_yslf = 25
-    Turn_Harder = False
     smaller_tolerance = 15
-    angle_to_marker = 0
     measure_distance_traveled()
     Measuring = False
     DISTANCETRAVELLED = 0
@@ -1137,9 +1008,9 @@ def WALL_START_ID_3():
 
 def WALL_FOLLOWING_UPDATE_ID_3():
     """Updates the wall following behavior with simple proportional control from smtggg.py"""
-    global counter_1 , DISTANCETRAVELLED , Measuring , angle_pid , Turn_Harder , Just_After_crash
+    global counter_1 , DISTANCETRAVELLED , Measuring 
     counter_1 += rc.get_delta_time()
-    print("turn garder ", Turn_Harder)
+    
     if counter_1 < 0.4:
         measure_distance_traveled()
         Measuring = False
@@ -1164,42 +1035,26 @@ def WALL_FOLLOWING_UPDATE_ID_3():
     kP = 0.5
 
     angle_pid = rc_utils.clamp(kP * error / maxError, -1, 1)
-    rc.drive.set_max_speed(0.3)
     current_speed = DRIVE_SPEED # Global DRIVE_SPEED
 
-    if Just_After_crash:
-        if angle_pid > 0:
-            angle_pid += 0.4
-        else:
-            angle_pid -= 0.4
-        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
     # Apply initial turn boost logic from original code
     # This should apply to the angle_pid calculated by the proportional controller
-    print("distance_to_marker", distance_to_marker)
-    print("marker in view", Marker_in_view)
-    if Marker_in_view and distance_to_marker > 15:
-        rc.drive.set_speed_angle(1, angle_to_marker)
     if counter_1 < 3:
         if angle_pid > 0:
             angle_pid = min(1.0, angle_pid + 0.1)
         elif angle_pid < 0:
             angle_pid = max(-1.0, angle_pid - 0.1)
-    if Turn_Harder:
-        if angle_pid > 0:
-            angle_pid += 0.8
-        elif angle_pid < 0:
-            angle_pid -= 0.8
-        angle_pid = rc_utils.clamp(angle_pid, -1, 1)
     
     # print("Error: " + str(error)) # Optional debug
     # rc.drive.set_max_speed() # Original call. Consider if this is needed or if max speed is set in start().
     if front_dist < 150:
         current_speed = 0.65
+       #THE PROBLEM IS THAT WHEN THE CAR
     if front_dist < 70:
         if angle_pid > 0:
-            angle_pid += 0.8
+            angle_pid += 0.6
         elif angle_pid < 0:
-            angle_pid -= 0.8
+            angle_pid -= 0.6
         angle_pid = rc_utils.clamp(angle_pid, -1, 1)
         if right_dist >= left_dist and left_dist < 50:
             rc.drive.set_speed_angle(current_speed, abs(angle_pid))
@@ -1216,10 +1071,8 @@ def WALL_FOLLOWING_UPDATE_ID_3():
         
     else:   
         print("No obstacle in front")
-        rc.drive.set_max_speed(0.3)
+        rc.drive.set_max_speed()
         rc.drive.set_speed_angle(current_speed, angle_pid)
-    print("angle_pid", angle_pid)
-
 
     # The commented out section from the original file regarding DISTANCETRAVELLED based turn
     # if 360 >= DISTANCETRAVELLED >= 340:
@@ -1902,50 +1755,52 @@ def update_Lane():
     follow_two_lines_Lane()
     
     # Wall avoidance logic
-    wall_avoidance_angle = 0
+    # wall_avoidance_angle = 0
     
-    # If wall is too close on the left, turn right
-    if left_distance < 60:
-        wall_avoidance_angle = rc_utils.remap_range(left_distance, 20, 60, 0.7, 0.2)
-        print(f"Wall on left: {left_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
+    # # If wall is too close on the left, turn right
+    # if left_distance < 60:
+    #     wall_avoidance_angle = rc_utils.remap_range(left_distance, 20, 60, 0.7, 0.2)
+    #     print(f"Wall on left: {left_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
     
-    # If wall is too close on the right, turn left
-    elif right_distance < 60:
-        wall_avoidance_angle = rc_utils.remap_range(right_distance, 20, 60, -0.7, -0.2)
-        print(f"Wall on right: {right_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
+    # # If wall is too close on the right, turn left
+    # elif right_distance < 60:
+    #     wall_avoidance_angle = rc_utils.remap_range(right_distance, 20, 60, -0.7, -0.2)
+    #     print(f"Wall on right: {right_distance:.1f}cm, adding angle: {wall_avoidance_angle:.2f}")
     
-    # If wall is directly in front, make a stronger turn
-    if front_distance < 100:
-        # Turn away from the closest side wall, or choose left by default if equal
-        if left_distance < right_distance:
-            wall_avoidance_angle = 0.8  # Turn right
-        else:
-            wall_avoidance_angle = -0.8  # Turn left
+    # # If wall is directly in front, make a stronger turn
+    # if front_distance < 100:
+    #     # Turn away from the closest side wall, or choose left by default if equal
+    #     if left_distance < right_distance:
+    #         wall_avoidance_angle = 0.8  # Turn right
+    #     else:
+    #         wall_avoidance_angle = -0.8  # Turn left
         
-        # Slow down when approaching a wall
-        speed = rc_utils.remap_range(front_distance, 30, 100, 0.5, 1.0)
-        print(f"Wall ahead: {front_distance:.1f}cm, strong avoid: {wall_avoidance_angle:.2f}")
+    #     # Slow down when approaching a wall
+    #     speed = rc_utils.remap_range(front_distance, 30, 100, 0.5, 1.0)
+    #     print(f"Wall ahead: {front_distance:.1f}cm, strong avoid: {wall_avoidance_angle:.2f}")
     
-    # Combine lane following angle with wall avoidance
-    # Lane following gets priority, but wall avoidance can override if needed
-    if abs(wall_avoidance_angle) > 0.1:
-        # Blend the angles, with more weight to wall avoidance when walls are very close
-        blend_factor = rc_utils.remap_range(min(left_distance, right_distance, front_distance), 20, 60, 0.8, 0.3)
-        blend_factor = rc_utils.clamp(blend_factor, 0, 0.8)
+    # # Combine lane following angle with wall avoidance
+    # # Lane following gets priority, but wall avoidance can override if needed
+    # if abs(wall_avoidance_angle) > 0.1:
+    #     # Blend the angles, with more weight to wall avoidance when walls are very close
+    #     blend_factor = rc_utils.remap_range(min(left_distance, right_distance, front_distance), 
+    #                                       20, 60, 0.8, 0.3)
+    #     blend_factor = rc_utils.clamp(blend_factor, 0, 0.8)
         
-        # Apply blending
-        angle = angle * (1 - blend_factor) + wall_avoidance_angle * blend_factor
+    #     # Apply blending
+    #     angle = angle * (1 - blend_factor) + wall_avoidance_angle * blend_factor
     
     # Apply additional steering bias for sharper turns
     if angle > 0:
-        angle += 0.8  # Restore to original value of 0.6
+        angle += 0.2  # Restore to original value of 0.6
     elif angle < 0:
-        angle -= 1.0
+        angle -= 0.2
     angle = rc_utils.clamp(angle, -1, 1)
     
     speed_factor = 1.0 - abs(angle) * 1.5
     calculate_speed = speed * max(0.5, speed_factor)
-    calculate_speed = speed
+    rc.drive.set_max_speed(0.5)
+    calculate_speed = 0.8
     
     print(f"Speed: {calculate_speed:.2f}, Angle: {angle:.2f}")
     
@@ -3438,16 +3293,21 @@ def measure_distance_traveled():
     
     current_time_local = time.time()
     
-    # The logic to SET is_crashed_or_stalled has been moved to the main update() function
-    # or relevant state handlers that have fresh LIDAR data.
+    # Update crash/stall status (can also be done in main update loop)
+    # For simplicity, doing a basic check here. `front_distance` global needs to be up-to-date.
+    # A more robust solution might average front_distance or use a timer.
+    if front_distance < CRASH_DISTANCE_THRESHOLD_CM and front_distance > 0 and abs(speed) > MIN_SPEED_FOR_STALL_CHECK_CM:
+        is_crashed_or_stalled = True
+    else:
+        is_crashed_or_stalled = False
 
-    if is_crashed_or_stalled: # This flag is now set externally before this function is called
+    if is_crashed_or_stalled:
         if Measuring:
             # Keep last_measure_time updating so delta_time doesn't become huge if we un-crash
             if last_measure_time == 0.0:
-                 last_measure_time = current_time_local
-            else: 
-                 last_measure_time = current_time_local # Update time to prevent large jump if un-stalled
+                last_measure_time = current_time_local
+            else:  # Python syntax requires a colon here
+                last_measure_time = current_time_local # Update time to prevent large jump if un-stalled
         return distance_traveled # Do not accumulate distance if crashed/stalled
 
     if Measuring:
